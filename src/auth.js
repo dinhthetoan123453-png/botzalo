@@ -9,7 +9,7 @@ const { renderAndSaveQR } = require('./utils/qrHelper');
  * Ưu tiên dùng session đã lưu từ trước. Nếu chưa có hoặc hết hạn sẽ quét QR.
  */
 async function authenticate() {
-  const zalo = new Zalo();
+  const zalo = new Zalo({ selfListen: true });
 
   // 1. Kiểm tra session.json đã lưu trước đó
   if (fs.existsSync(config.sessionPath)) {
