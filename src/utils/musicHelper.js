@@ -18,21 +18,21 @@ async function ensureSoundCloud() {
       await play.setToken({ soundcloud: { client_id: clientID } });
       soundCloudInitialized = true;
     } catch (err) {
-      logger.error('Loi khoi tao SoundCloud client ID:', err.message);
+      logger.error('Lỗi khởi tạo SoundCloud client ID:', err.message);
     }
   }
 }
 
 function formatDuration(seconds) {
-  if (!seconds || isNaN(seconds)) return 'Khong ro';
+  if (!seconds || isNaN(seconds)) return 'Không rõ';
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
 }
 
 /**
- * Tim kiem bai hat tu Spotify hoac SoundCloud va tai ve file tam
- * @param {string} query - Tu khoa tim kiem hoac link Spotify / SoundCloud
+ * Tìm kiếm bài hát từ Spotify hoặc SoundCloud và tải về file tạm
+ * @param {string} query - Từ khóa tìm kiếm hoặc link Spotify / SoundCloud
  */
 async function searchAndDownloadMusic(query) {
   await ensureSoundCloud();
@@ -43,7 +43,7 @@ async function searchAndDownloadMusic(query) {
   let source = 'SoundCloud';
   let trackObj = null;
 
-  // 1. Kiem tra xem co phai link Spotify khong
+  // 1. Kiểm tra xem có phải link Spotify không
   const isSpotify = /open\.spotify\.com\/track\/|spotify:track:/i.test(query);
 
   if (isSpotify) {
@@ -54,7 +54,7 @@ async function searchAndDownloadMusic(query) {
       trackArtist = preview.artist || 'Unknown';
       coverUrl = preview.image || '';
 
-      // Tim ban audio tuong ung tren SoundCloud
+      // Tìm bản audio tương ứng trên SoundCloud
       const scSearch = await play.search(`${trackArtist} - ${trackTitle}`, {
         source: { soundcloud: 'tracks' },
         limit: 1,
@@ -64,11 +64,11 @@ async function searchAndDownloadMusic(query) {
         trackObj = scSearch[0];
       }
     } catch (spErr) {
-      logger.warn('Loi khi doc thong tin Spotify:', spErr.message);
+      logger.warn('Lỗi khi đọc thông tin Spotify:', spErr.message);
     }
   }
 
-  // 2. Neu khong phai Spotify hoac la tim kiem SoundCloud thong thuong
+  // 2. Nếu không phải Spotify hoặc là tìm kiếm SoundCloud thông thường
   if (!trackObj) {
     try {
       const searchResults = await play.search(query, {
@@ -79,13 +79,13 @@ async function searchAndDownloadMusic(query) {
       if (searchResults && searchResults.length > 0) {
         trackObj = searchResults[0];
         trackTitle = trackObj.name || query;
-        trackArtist = trackObj.user?.name || 'Nghe si';
+        trackArtist = trackObj.user?.name || 'Nghệ sĩ';
         if (!coverUrl && trackObj.thumbnail) {
           coverUrl = trackObj.thumbnail.replace('-large.jpg', '-t500x500.jpg');
         }
       }
     } catch (scErr) {
-      logger.error('Loi khi tim kiem tren SoundCloud:', scErr.message);
+      logger.error('Lỗi khi tìm kiếm trên SoundCloud:', scErr.message);
     }
   }
 
@@ -97,7 +97,7 @@ async function searchAndDownloadMusic(query) {
   const imagePath = path.join(TEMP_DIR, `cover_${timestamp}.jpg`);
   const audioPath = path.join(TEMP_DIR, `audio_${timestamp}.mp3`);
 
-  // Tai anh bia
+  // Tải ảnh bìa
   let hasImage = false;
   if (coverUrl) {
     try {
@@ -108,11 +108,11 @@ async function searchAndDownloadMusic(query) {
         hasImage = true;
       }
     } catch (imgErr) {
-      logger.warn('Khong the tai anh bia bai hat:', imgErr.message);
+      logger.warn('Không thể tải ảnh bìa bài hát:', imgErr.message);
     }
   }
 
-  // Tai audio stream
+  // Tải audio stream
   const streamInfo = await play.stream_from_info(trackObj);
   await new Promise((resolve, reject) => {
     const writeStream = fs.createWriteStream(audioPath);

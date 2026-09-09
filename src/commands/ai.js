@@ -9,13 +9,13 @@ if (config.geminiApiKey) {
 
 module.exports = {
   name: 'ai',
-  description: 'Hoi dap voi tri tue nhan tao (Google Gemini)',
-  usage: '!ai <cau hoi>',
+  description: 'Hỏi đáp với trí tuệ nhân tạo (Google Gemini)',
+  usage: '!ai <câu hỏi>',
   async execute({ api, message, args, threadId, threadType }) {
     if (!args || args.length === 0) {
       await api.sendMessage(
         {
-          msg: 'Vui long nhap cau hoi sau lenh !ai. Vi du: !ai giai thich tai sao bau troi mau xanh?',
+          msg: 'Vui lòng nhập câu hỏi sau lệnh !ai. Ví dụ: !ai giải thích tại sao bầu trời màu xanh?',
           quote: message.data,
         },
         threadId,
@@ -27,7 +27,7 @@ module.exports = {
     if (!config.geminiApiKey || !aiClient) {
       await api.sendMessage(
         {
-          msg: 'Tinh nang AI chua duoc cau hinh.\nBan vui long mo file .env va dien GEMINI_API_KEY (lay tai https://aistudio.google.com/app/apikey).',
+          msg: 'Tính năng AI chưa được cấu hình.\nBạn vui lòng mở file .env và điền GEMINI_API_KEY (lấy tại https://aistudio.google.com/app/apikey).',
           quote: message.data,
         },
         threadId,
@@ -44,21 +44,21 @@ module.exports = {
         contents: prompt,
       });
 
-      const replyText = response.text || 'Khong nhan duoc cau tra loi tu AI.';
+      const replyText = response.text || 'Không nhận được câu trả lời từ AI.';
 
       await api.sendMessage(
         {
-          msg: `Tra loi:\n\n${replyText}`,
+          msg: `Trả lời:\n\n${replyText}`,
           quote: message.data,
         },
         threadId,
         threadType
       );
     } catch (err) {
-      logger.error('Loi khi goi Gemini API:', err);
+      logger.error('Lỗi khi gọi Gemini API:', err);
       await api.sendMessage(
         {
-          msg: `Loi xu ly AI: ${err.message || 'Khong the ket noi den may chu AI.'}`,
+          msg: `Lỗi xử lý AI: ${err.message || 'Không thể kết nối đến máy chủ AI.'}`,
           quote: message.data,
         },
         threadId,

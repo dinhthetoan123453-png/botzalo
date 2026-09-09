@@ -3,13 +3,13 @@ const logger = require('../utils/logger');
 
 module.exports = {
   name: 'music',
-  description: 'Tim kiem va gui nhac tu SoundCloud hoac link Spotify kem anh bia',
-  usage: '!music <ten bai hat hoac link>',
+  description: 'Tìm kiếm và gửi nhạc từ SoundCloud hoặc link Spotify kèm ảnh bìa',
+  usage: '!music <tên bài hát hoặc link>',
   async execute({ api, message, args, threadId, threadType }) {
     if (!args || args.length === 0) {
       await api.sendMessage(
         {
-          msg: 'Vui long nhap ten bai hat hoac link Spotify / SoundCloud. Vi du: !music Chung ta cua tuong lai',
+          msg: 'Vui lòng nhập tên bài hát hoặc link Spotify / SoundCloud. Ví dụ: !music Chúng ta của tương lai',
           quote: message.data,
         },
         threadId,
@@ -20,10 +20,10 @@ module.exports = {
 
     const query = args.join(' ');
 
-    // Thong bao dang xu ly
+    // Thông báo đang xử lý
     await api.sendMessage(
       {
-        msg: `Dang tim kiem va xu ly bai hat: "${query}". Vui long doi giay lat...`,
+        msg: `Đang tìm kiếm và xử lý bài hát: "${query}". Vui lòng đợi giây lát...`,
         quote: message.data,
       },
       threadId,
@@ -37,7 +37,7 @@ module.exports = {
       if (!result) {
         await api.sendMessage(
           {
-            msg: `Khong tim thay bai hat nao voi tu khoa: "${query}".`,
+            msg: `Không tìm thấy bài hát nào với từ khóa: "${query}".`,
             quote: message.data,
           },
           threadId,
@@ -46,14 +46,14 @@ module.exports = {
         return;
       }
 
-      logger.info(`Tim thay bai hat: ${result.title} - ${result.artist}`);
+      logger.info(`Tìm thấy bài hát: ${result.title} - ${result.artist}`);
 
-      // 1. Gui anh bia kem thong tin bai hat
-      const infoMsg = `[THONG TIN BAI HAT]\n` +
-        `- Ten: ${result.title}\n` +
-        `- Nghe si: ${result.artist}\n` +
-        `- Nguon: ${result.source}\n` +
-        `- Thoi luong: ${result.duration}`;
+      // 1. Gửi ảnh bìa kèm thông tin bài hát
+      const infoMsg = `[THÔNG TIN BÀI HÁT]\n` +
+        `- Tên: ${result.title}\n` +
+        `- Nghệ sĩ: ${result.artist}\n` +
+        `- Nguồn: ${result.source}\n` +
+        `- Thời lượng: ${result.duration}`;
 
       if (result.imagePath) {
         await api.sendMessage(
@@ -76,9 +76,9 @@ module.exports = {
         );
       }
 
-      // 2. Gui file am thanh (audio mp3)
+      // 2. Gửi file âm thanh (audio mp3)
       if (result.audioPath) {
-        logger.info(`Dang tai len file audio: ${result.audioPath}`);
+        logger.info(`Đang tải lên file audio: ${result.audioPath}`);
         await api.sendMessage(
           {
             msg: `Audio: ${result.title}.mp3`,
@@ -89,10 +89,10 @@ module.exports = {
         );
       }
     } catch (err) {
-      logger.error('Loi khi tim hoac gui nhac:', err.message || err);
+      logger.error('Lỗi khi tìm hoặc gửi nhạc:', err.message || err);
       await api.sendMessage(
         {
-          msg: `Co loi xay ra khi tai bai hat: ${err.message || 'Loi khong xac dinh'}`,
+          msg: `Có lỗi xảy ra khi tải bài hát: ${err.message || 'Lỗi không xác định'}`,
           quote: message.data,
         },
         threadId,

@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: zalo-bot
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: BOT_PREFIX
+        value: "!"
+      - key: AUTO_REPLY_AI
+        value: "false"
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: ZALO_SESSION
+        sync: false

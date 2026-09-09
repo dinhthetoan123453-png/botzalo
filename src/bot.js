@@ -39,16 +39,16 @@ function startBot(api) {
 
   // 2. Lắng nghe các sự kiện kết nối của listener
   api.listener.on('connected', () => {
-    logger.success('WebSocket da ket noi toi may chu Zalo!');
-    logger.bot(`Bot dang lang nghe tin nhan voi tien to: [ ${config.prefix} ]`);
+    logger.success('WebSocket đã kết nối tới máy chủ Zalo!');
+    logger.bot(`Bot đang lắng nghe tin nhắn với tiền tố: [ ${config.prefix} ]`);
   });
 
   api.listener.on('disconnected', (code, reason) => {
-    logger.warn(`Mat ket noi toi may chu Zalo (Ma: ${code}, Ly do: ${reason || 'Khong ro'})`);
+    logger.warn(`Mất kết nối tới máy chủ Zalo (Mã: ${code}, Lý do: ${reason || 'Không rõ'})`);
   });
 
   api.listener.on('closed', (code, reason) => {
-    logger.warn(`WebSocket da dong (Ma: ${code}, Ly do: ${reason || 'Khong ro'}). Chu y: Neu ban mo Zalo tren trinh duyet cung luc, ket noi bot se tu dong ngat.`);
+    logger.warn(`WebSocket đã đóng (Mã: ${code}, Lý do: ${reason || 'Không rõ'}). Chú ý: Nếu bạn mở Zalo trên trình duyệt cùng lúc, kết nối bot sẽ tự động ngắt.`);
   });
 
   api.listener.on('error', (err) => {
@@ -97,7 +97,7 @@ function startBot(api) {
           if (!isGroup) {
             await api.sendMessage(
               {
-                msg: `Lenh '${config.prefix}${commandName}' khong ton tai. Go '${config.prefix}help' de xem danh sach lenh.`,
+                msg: `Lệnh '${config.prefix}${commandName}' không tồn tại. Gõ '${config.prefix}help' để xem danh sách lệnh.`,
                 quote: message.data,
               },
               threadId,

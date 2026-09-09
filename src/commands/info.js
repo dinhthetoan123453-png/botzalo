@@ -2,19 +2,19 @@ const { ThreadType } = require('zca-js');
 
 module.exports = {
   name: 'info',
-  description: 'Hien thi thong tin nguoi gui va cuoc tro chuyen',
+  description: 'Hiển thị thông tin người gửi và cuộc trò chuyện',
   usage: '!info',
   async execute({ api, message, threadId, threadType }) {
-    const senderName = message.data.dName || 'Khong xac dinh';
-    const senderUid = message.data.uidFrom || 'Khong ro';
-    const chatType = threadType === ThreadType.Group ? 'Nhom chat' : 'Tin nhan rieng (1-1)';
+    const senderName = message.data.dName || 'Không xác định';
+    const senderUid = message.data.uidFrom || 'Không rõ';
+    const chatType = threadType === ThreadType.Group ? 'Nhóm chat' : 'Tin nhắn riêng (1-1)';
 
-    const replyMsg = `THONG TIN CUOC TRO CHUYEN:\n` +
-      `- Nguoi gui: ${senderName}\n` +
+    const replyMsg = `THÔNG TIN CUỘC TRÒ CHUYỆN:\n` +
+      `- Người gửi: ${senderName}\n` +
       `- UID Zalo: ${senderUid}\n` +
-      `- Loai hoi thoai: ${chatType}\n` +
+      `- Loại hội thoại: ${chatType}\n` +
       `- ID Thread: ${threadId}\n` +
-      `- ID Tin nhan: ${message.data.msgId || 'N/A'}`;
+      `- ID Tin nhắn: ${message.data.msgId || 'N/A'}`;
 
     await api.sendMessage(
       {

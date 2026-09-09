@@ -24,7 +24,7 @@ async function renderAndSaveQR(base64Data, savePath) {
 
       if (code && code.data) {
         console.log('\n' + '='.repeat(45));
-        console.log('HAY DUNG APP ZALO TREN DIEN THOAI DE QUET MA NAY:');
+        console.log('HÃY DÙNG APP ZALO TRÊN ĐIỆN THOẠI ĐỂ QUÉT MÃ NÀY:');
         console.log('='.repeat(45) + '\n');
         
         qrcodeTerminal.generate(code.data, { small: true });
