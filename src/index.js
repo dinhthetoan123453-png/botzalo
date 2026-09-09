@@ -4,9 +4,9 @@ const logger = require('./utils/logger');
 
 async function main() {
   console.log('\n' + '='.repeat(50));
-  console.log('       🤖 DỰ ÁN ZALO BOT TÀI KHOẢN CÁ NHÂN');
+  console.log('       DU AN ZALO BOT TAI KHOAN CA NHAN');
   console.log('='.repeat(50));
-  console.log('⚠️  LƯU Ý QUAN TRỌNG:');
+  console.log('LUU Y QUAN TRONG:');
   console.log('- Đây là thư viện mô phỏng Zalo Web không chính thức.');
   console.log('- Khuyến nghị nên sử dụng tài khoản phụ (nick test) để thử nghiệm.');
   console.log('- Không dùng bot để spam tin nhắn nhằm tránh checkpoint Zalo.');

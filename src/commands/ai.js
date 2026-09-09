@@ -9,13 +9,13 @@ if (config.geminiApiKey) {
 
 module.exports = {
   name: 'ai',
-  description: 'Hỏi đáp thông minh với trí tuệ nhân tạo (Google Gemini)',
-  usage: '!ai <câu hỏi của bạn>',
+  description: 'Hoi dap voi tri tue nhan tao (Google Gemini)',
+  usage: '!ai <cau hoi>',
   async execute({ api, message, args, threadId, threadType }) {
     if (!args || args.length === 0) {
       await api.sendMessage(
         {
-          msg: '❓ Vui lòng nhập câu hỏi sau lệnh !ai. Ví dụ: !ai giải thích tại sao bầu trời màu xanh?',
+          msg: 'Vui long nhap cau hoi sau lenh !ai. Vi du: !ai giai thich tai sao bau troi mau xanh?',
           quote: message.data,
         },
         threadId,
@@ -27,7 +27,7 @@ module.exports = {
     if (!config.geminiApiKey || !aiClient) {
       await api.sendMessage(
         {
-          msg: '⚠️ Tính năng AI chưa được cấu hình.\nBạn vui lòng mở file .env và điền GEMINI_API_KEY (lấy miễn phí tại https://aistudio.google.com/app/apikey).',
+          msg: 'Tinh nang AI chua duoc cau hinh.\nBan vui long mo file .env va dien GEMINI_API_KEY (lay tai https://aistudio.google.com/app/apikey).',
           quote: message.data,
         },
         threadId,
@@ -39,27 +39,26 @@ module.exports = {
     const prompt = args.join(' ');
 
     try {
-      // Gửi thông báo đang xử lý nếu cần hoặc gọi API trực tiếp
       const response = await aiClient.models.generateContent({
         model: config.geminiModel,
         contents: prompt,
       });
 
-      const replyText = response.text || 'Không nhận được câu trả lời từ AI.';
+      const replyText = response.text || 'Khong nhan duoc cau tra loi tu AI.';
 
       await api.sendMessage(
         {
-          msg: `🤖 Trả lời:\n\n${replyText}`,
+          msg: `Tra loi:\n\n${replyText}`,
           quote: message.data,
         },
         threadId,
         threadType
       );
     } catch (err) {
-      logger.error('Lỗi khi gọi Gemini API:', err);
+      logger.error('Loi khi goi Gemini API:', err);
       await api.sendMessage(
         {
-          msg: `❌ Lỗi xử lý AI: ${err.message || 'Không thể kết nối đến máy chủ AI.'}`,
+          msg: `Loi xu ly AI: ${err.message || 'Khong the ket noi den may chu AI.'}`,
           quote: message.data,
         },
         threadId,

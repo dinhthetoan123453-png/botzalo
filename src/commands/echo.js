@@ -1,12 +1,12 @@
 module.exports = {
   name: 'echo',
-  description: 'Lặp lại nội dung bạn vừa nhập',
-  usage: '!echo <nội dung>',
+  description: 'Lap lai noi dung ban vua nhap',
+  usage: '!echo <noi dung>',
   async execute({ api, message, args, threadId, threadType }) {
     if (!args || args.length === 0) {
       await api.sendMessage(
         {
-          msg: '⚠️ Vui lòng nhập nội dung muốn lặp lại. Ví dụ: !echo Xin chào Zalo!',
+          msg: 'Vui long nhap noi dung muon lap lai. Vi du: !echo Xin chao Zalo',
           quote: message.data,
         },
         threadId,
@@ -18,7 +18,7 @@ module.exports = {
     const textToEcho = args.join(' ');
     await api.sendMessage(
       {
-        msg: `📢 Echo: ${textToEcho}`,
+        msg: `Echo: ${textToEcho}`,
         quote: message.data,
       },
       threadId,

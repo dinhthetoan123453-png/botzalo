@@ -3,4 +3,5 @@ node_modules/
 session.json
 qr.png
 *.log
+temp/
 .DS_Store

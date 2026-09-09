@@ -1,133 +1,93 @@
-# 🤖 Zalo Personal Account Bot (Dự án Bot Zalo Tài Khoản Cá Nhân)
+# Zalo Personal Account Bot (Du an Bot Zalo Tai Khoan Ca Nhan)
 
-Dự án Zalo Bot chạy trực tiếp trên **tài khoản Zalo cá nhân** (Userbot) được xây dựng bằng **Node.js** và thư viện **`zca-js`**. Dự án hỗ trợ đăng nhập qua mã QR, tự động lưu session để không phải quét lại mã, cấu trúc phân nhánh lệnh dạng module và tích hợp AI (Google Gemini).
-
----
-
-## ⚠️ Lưu ý quan trọng về an toàn tài khoản
-
-> [!WARNING]
-> Zalo **chưa hỗ trợ API chính thức** cho tài khoản cá nhân (họ chỉ hỗ trợ Zalo Official Account dành cho doanh nghiệp có giấy phép). Do đó, thư viện này hoạt động bằng cách **mô phỏng Zalo Web**.
->
-> 1. **Khuyến cáo dùng nick phụ:** Nên dùng một tài khoản phụ / sim rác để chạy thử nghiệm bot trước khi tích hợp vào tài khoản chính.
-> 2. **Chống Spam:** Không nên gửi tin nhắn hàng loạt hoặc spam trong thời gian ngắn để tránh việc Zalo kích hoạt cơ chế checkpoint khóa tài khoản.
-> 3. **Bảo mật Session:** File `session.json` chứa cookie đăng nhập của bạn. **Tuyệt đối không gửi hoặc commit file này lên GitHub**.
-> 4. **Tránh xung đột Web:** Một tài khoản chỉ nên duy trì một phiên Zalo Web hoạt động tại một thời điểm. Nếu bạn mở Zalo Web trên trình duyệt thì bot có thể bị ngắt kết nối tạm thời.
+Du an Zalo Bot chay truc tiep tren tai khoan Zalo ca nhan (Userbot) duoc xay dung bang Node.js va thu vien zca-js. Du an ho tro dang nhap qua ma QR, tu dong luu session, phan nhanh lenh dang module, tim va gui nhac tu SoundCloud/Spotify kem anh bia, va tich hop AI (Google Gemini).
 
 ---
 
-## 📁 Cấu trúc thư mục dự án
+## Luu y ve an toan tai khoan
+
+- Zalo chua ho tro API mo cho tai khoan ca nhan. Thu vien hoat dong bang cach mo phong giao thuc Zalo Web.
+- Khuyen nghi su dung tai khoan phu (nick test) de chay thu nghiem.
+- Khong dung bot de gui tin nhan spam hoac gui tin voi tan suat qua cao de tranh bi khoa tai khoan.
+- File session.json chua thong tin cookie dang nhap, tuyet doi khong chia se hoac commit file nay len GitHub.
+
+---
+
+## Cau truc thu muc
 
 ```text
 zalo bot/
 ├── src/
-│   ├── commands/              # Thư mục chứa các lệnh của bot
-│   │   ├── ai.js              # Lệnh !ai (tích hợp Gemini AI)
-│   │   ├── echo.js            # Lệnh !echo (lặp lại tin nhắn)
-│   │   ├── help.js            # Lệnh !help (danh sách lệnh)
-│   │   ├── info.js            # Lệnh !info (thông tin người gửi/nhóm)
-│   │   ├── ping.js            # Lệnh !ping (kiểm tra độ trễ, uptime)
-│   │   └── index.js           # Bộ tải lệnh tự động
+│   ├── commands/              # Thu muc chua cac lenh
+│   │   ├── ai.js              # Lenh !ai (tich hop Gemini AI)
+│   │   ├── echo.js            # Lenh !echo (lap lai tin nhan)
+│   │   ├── help.js            # Lenh !help (danh sach lenh)
+│   │   ├── info.js            # Lenh !info (thong tin nguoi gui/nhom)
+│   │   ├── music.js           # Lenh !music (tim va gui nhac kem anh bia)
+│   │   ├── nhac.js            # Lenh !nhac (alias cua !music)
+│   │   ├── ping.js            # Lenh !ping (kiem tra do tre, uptime)
+│   │   └── index.js           # Bo nap lenh tu dong
 │   ├── utils/
-│   │   ├── logger.js          # Ghi log console có màu và timestamp
-│   │   └── qrHelper.js        # Hiển thị QR trên terminal và lưu file qr.png
-│   ├── auth.js                # Xử lý đăng nhập (session hoặc QR code)
-│   ├── bot.js                 # Lắng nghe tin nhắn, phân loại & điều hướng lệnh
-│   ├── config.js              # Cấu hình dự án từ file .env
-│   └── index.js               # Entry point chính
-├── .env                       # File cấu hình biến môi trường
-├── .env.example               # Mẫu file cấu hình
-├── .gitignore                 # Bỏ qua node_modules, session.json, qr.png
+│   │   ├── logger.js          # Ghi log console co mau va timestamp
+│   │   ├── musicHelper.js     # Tim va tai nhac tu SoundCloud / Spotify
+│   │   └── qrHelper.js        # Hien thi QR tren terminal va luu file qr.png
+│   ├── auth.js                # Xu ly dang nhap (session hoac QR code)
+│   ├── bot.js                 # Lang nghe tin nhan, phan loai va dieu huong lenh
+│   ├── config.js              # Cau hinh du an tu file .env
+│   └── index.js               # Entry point chinh
+├── .env                       # File cau hinh bien moi truong
+├── .env.example               # Mau file cau hinh
+├── .gitignore
 ├── package.json
 └── README.md
 ```
 
 ---
 
-## 🚀 Hướng dẫn cài đặt và khởi chạy
+## Huong dan khoi chay
 
-### Bước 1: Khởi động bot
-Chạy lệnh sau tại thư mục dự án:
+### Buoc 1: Khoi dong bot
+Chay lenh sau tai thu muc du an:
 
 ```bash
 npm start
 ```
 
-### Bước 2: Quét mã QR đăng nhập
-1. Khi chạy lần đầu tiên, bot sẽ tạo ra mã QR:
-   - Hiển thị trực tiếp dạng ASCII trên cửa sổ **Terminal**.
-   - Đồng thời lưu thành file ảnh `qr.png` trong thư mục dự án (bạn có thể mở file này để quét nếu terminal bị vỡ hình).
-2. Mở ứng dụng **Zalo trên điện thoại** > Chọn biểu tượng **Quét mã QR** > Quét mã vừa hiển thị.
-3. Nhấn **Xác nhận đăng nhập** trên điện thoại.
-4. Sau khi đăng nhập thành công, bot sẽ tự động tạo file `session.json`. Từ các lần khởi động tiếp theo, bot sẽ **tự động đăng nhập qua session** mà không cần quét lại mã QR nữa!
+### Buoc 2: Quet ma QR dang nhap
+1. Khi chay lan dau tien, bot se tao ra ma QR:
+   - Hien thi tren cua so Terminal.
+   - Luu thanh file anh qr.png trong thu muc du an (co the mo anh de quet).
+2. Mo ung dung Zalo tren dien thoai > Chon Quet ma QR > Quet ma vua hien thi.
+3. Nhan Xac nhan dang nhap tren dien thoai.
+4. Sau khi dang nhap thanh cong, bot tu dong luu session.json. Cac lan khoi dong sau bot se tu dong dang nhap ngay ma khong can quet lai ma.
 
 ---
 
-## ⚙️ Cấu hình biến môi trường (`.env`)
+## Danh sach cac lenh
 
-Mở file `.env` để tuỳ chỉnh các thiết lập:
-
-```ini
-# Tiền tố của lệnh (mặc định là !)
-BOT_PREFIX=!
-
-# Tự động trả lời mọi tin nhắn riêng tư bằng AI (true/false)
-AUTO_REPLY_AI=false
-
-# API Key của Google Gemini (miễn phí)
-# Lấy tại: https://aistudio.google.com/app/apikey
-GEMINI_API_KEY=
-
-# Mô hình AI sử dụng
-GEMINI_MODEL=gemini-2.5-flash
-
-# Thời gian nghỉ an toàn (ms) để tránh bị Zalo phát hiện bot
-SAFE_DELAY_MIN=1000
-SAFE_DELAY_MAX=2500
-```
-
----
-
-## 💬 Danh sách các lệnh có sẵn
-
-| Lệnh | Cú pháp | Mô tả |
+| Lenh | Cu phap | Mo ta |
 | :--- | :--- | :--- |
-| `ping` | `!ping` | Kiểm tra thời gian phản hồi, trạng thái và thời gian hoạt động của bot. |
-| `help` | `!help` | Hiển thị danh sách tất cả các lệnh bot đang hỗ trợ. |
-| `info` | `!info` | Xem thông tin ID, tên người gửi và loại phòng chat (nhóm hay riêng tư). |
-| `echo` | `!echo <nội dung>` | Lặp lại nội dung bạn vừa nhập. |
-| `ai` | `!ai <câu hỏi>` | Hỏi đáp với trợ lý AI Google Gemini. |
+| `ping` | `!ping` | Kiem tra do tre mang va thoi gian bot hoat dong. |
+| `help` | `!help` | Xem toan bo danh sach lenh. |
+| `info` | `!info` | Xem UID Zalo, ten va thong tin hoi thoai. |
+| `echo` | `!echo <noi dung>` | Lap lai tin nhan vua nhap. |
+| `music` | `!music <ten bai hat hoac link>` | Tim nhac tu SoundCloud/Spotify, gui anh bia va file audio mp3 vao chat. |
+| `nhac` | `!nhac <ten bai hat hoac link>` | Ten goi khac cua lenh !music. |
+| `ai` | `!ai <cau hoi>` | Hoi dap voi tri tue nhan tao Google Gemini (can API key trong .env). |
 
 ---
 
-## 🛠️ Hướng dẫn tự tạo thêm lệnh mới
+## Chuc nang tim va gui nhac
 
-Để tạo một lệnh mới, bạn chỉ cần tạo một file `.js` mới trong thư mục `src/commands/`. Bot sẽ tự động tải lệnh này mà không cần sửa code ở nơi khác!
+- Tim theo ten bai hat bat ky tren SoundCloud:
+  `!music Chung ta cua tuong lai`
+  `!nhac Nang am xa dan`
+- Gui link bai hat tu Spotify:
+  `!music https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT`
+- Gui link bai hat tu SoundCloud:
+  `!music https://soundcloud.com/...`
 
-**Ví dụ:** Tạo file `src/commands/chucmung.js`:
-
-```javascript
-module.exports = {
-  name: 'chucmung',
-  description: 'Gửi lời chúc mừng ngẫu nhiên',
-  usage: '!chucmung',
-  async execute({ api, message, threadId, threadType }) {
-    const loiChuc = [
-      'Chúc bạn một ngày tràn đầy năng lượng và niềm vui! 🌟',
-      'Vạn sự như ý, tỷ sự như mơ! ✨',
-      'Chúc công việc của bạn luôn thuận buồm xuôi gió! 🚀',
-    ];
-    const randomChuc = loiChuc[Math.floor(Math.random() * loiChuc.length)];
-
-    await api.sendMessage(
-      {
-        msg: randomChuc,
-        quote: message.data, // Trả lời trích dẫn tin nhắn gốc
-      },
-      threadId,
-      threadType
-    );
-  },
-};
-```
-Sau đó người dùng trong chat chỉ cần gõ `!chucmung` là bot sẽ phản hồi ngay!
+Bot se:
+1. Gui anh bia cua bai hat kem thong tin chi tiet (Ten bai hat, Nghe si, Nguon, Thoi luong).
+2. Gui file am thanh audio (.mp3) truc tiep len doan chat de nghe.
+3. Tu dong don dep cac file am thanh tam tren may sau khi gui.

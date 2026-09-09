@@ -2,20 +2,19 @@ const config = require('../config');
 
 module.exports = {
   name: 'help',
-  description: 'Hiển thị danh sách tất cả các lệnh của bot',
+  description: 'Hien thi danh sach tat ca cac lenh cua bot',
   usage: '!help',
   async execute({ api, message, threadId, threadType }) {
-    // Dynamic require to avoid circular dependencies
     const { commands } = require('./index');
 
-    let helpText = `📜 DANH SÁCH LỆNH ZALO BOT:\n`;
-    helpText += `(Tiền tố hiện tại: ${config.prefix})\n\n`;
+    let helpText = `DANH SACH LENH ZALO BOT:\n`;
+    helpText += `(Tien to lenh: ${config.prefix})\n\n`;
 
     for (const [name, cmd] of commands.entries()) {
-      helpText += `🔹 ${cmd.usage || config.prefix + name}\n   ➥ ${cmd.description || 'Không có mô tả'}\n\n`;
+      helpText += `+ ${cmd.usage || config.prefix + name}\n  > ${cmd.description || 'Khong co mo ta'}\n\n`;
     }
 
-    helpText += `💡 Mẹo: Bạn có thể thêm lệnh mới trong thư mục src/commands/`;
+    helpText += `Meo: Go dung cu phap de bot thuc thi lenh.`;
 
     await api.sendMessage(
       {
