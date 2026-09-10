@@ -121,12 +121,7 @@ Quy tắc phản hồi tối ưu:
         },
       });
 
-      let replyText = response.text?.trim() || 'Không nhận được câu trả lời từ AI.';
-
-      // Thêm thông tin chú thích số lượng tin nhắn ngữ cảnh đã tham khảo để người dùng dễ theo dõi
-      if (previousMessages.length > 0) {
-        replyText += `\n\n💡 (Đã tối ưu câu trả lời dựa trên ${previousMessages.length} tin nhắn gần nhất)`;
-      }
+      const replyText = response.text?.trim() || 'Không nhận được câu trả lời từ AI.';
 
       // 4. Lưu câu hỏi của người dùng (nếu có) và câu trả lời của AI vào lịch sử để duy trì mạch hội thoại
       if (userPrompt) {
