@@ -13,7 +13,7 @@ module.exports = {
   name: 'ai',
   description: 'Hỏi đáp với AI Google Gemini (đọc 8 tin nhắn gần nhất để tối ưu câu trả lời)',
   usage: '!ai [câu hỏi hoặc để trống để AI phản hồi theo ngữ cảnh]',
-  async execute({ api, message, args, threadId, threadType, isAutoReply = false }) {
+  async execute({ api, message, args, threadId, threadType, isAutoReply = false, isMentioned = false, isQuotingBot = false }) {
     if (!config.geminiApiKey) {
       await api.sendMessage(
         {
@@ -71,7 +71,7 @@ module.exports = {
       const previousMessages = fullHistory
         .filter(m => {
           if (!m || !m.content) return false;
-          if (m.content === rawCurrent) return false;
+          if (m.content === rawCurrent || (userPrompt && m.content === userPrompt)) return false;
           return true;
         })
         .slice(-historyLimit);
@@ -91,19 +91,22 @@ module.exports = {
         return;
       }
 
-      // 2. Xây dựng prompt chứa bối cảnh 8 tin nhắn gần nhất
+      // 2. Xây dựng prompt chứa bối cảnh các tin nhắn gần nhất
       let contents = '';
-      if (previousMessages.length > 0) {
-        const historyText = chatHistory.formatForPrompt(previousMessages);
-        if (isAutoReply) {
-          contents = `[BỐI CẢNH ${previousMessages.length} TIN NHẮN GẦN NHẤT TRONG CUỘC TRÒ CHUYỆN]:\n${historyText}\n\n[YÊU CẦU]:\nBạn là chủ tài khoản Zalo đang trò chuyện với "${senderName}". Hãy đọc kỹ các tin nhắn trên và viết câu trả lời phản hồi lại tin nhắn mới nhất một cách tự nhiên, thân thiện, ngắn gọn như người thật đang nhắn tin.`;
-        } else if (userPrompt) {
-          contents = `[BỐI CẢNH ${previousMessages.length} TIN NHẮN GẦN NHẤT TRONG CUỘC TRÒ CHUYỆN]:\n${historyText}\n\n[CÂU HỎI / YÊU CẦU MỚI NHẤT TỪ "${senderName}"]:\n"${userPrompt}"\n\nHãy phân tích kỹ bối cảnh các tin nhắn trên để trả lời câu hỏi mới nhất một cách tối ưu, tự nhiên, chính xác và súc tích nhất cho tin nhắn Zalo.`;
-        } else {
-          contents = `[BỐI CẢNH ${previousMessages.length} TIN NHẮN GẦN NHẤT TRONG CUỘC TRÒ CHUYỆN]:\n${historyText}\n\n[YÊU CẦU]:\nNgười dùng "${senderName}" vừa gọi AI hỗ trợ. Hãy phân tích kỹ các tin nhắn gần nhất trên và đưa ra câu trả lời hoặc phản hồi tối ưu nhất để tiếp nối, giải quyết vấn đề mọi người đang bàn luận trong cuộc trò chuyện.`;
-        }
+      const historyText = previousMessages.length > 0 ? chatHistory.formatForPrompt(previousMessages) : '';
+
+      if (isAutoReply) {
+        const latestMsg = userPrompt || rawCurrent;
+        contents = (historyText ? `[BỐI CẢNH ${previousMessages.length} TIN NHẮN TRƯỚC ĐÓ TRONG CUỘC TRÒ CHUYỆN]:\n${historyText}\n\n` : '') +
+          `[TIN NHẮN MỚI NHẤT VỪA NHẬN TỪ "${senderName}"]:\n"${latestMsg}"\n\n` +
+          `[YÊU CẦU]:\nBạn là chủ tài khoản Zalo đang trò chuyện 1-1 với "${senderName}". Hãy đọc kỹ bối cảnh và phản hồi lại tin nhắn mới nhất trên một cách tự nhiên, thân thiện, ngắn gọn như người thật đang nhắn tin Zalo.`;
+      } else if (userPrompt) {
+        contents = (historyText ? `[BỐI CẢNH ${previousMessages.length} TIN NHẮN GẦN NHẤT TRONG CUỘC TRÒ CHUYỆN]:\n${historyText}\n\n` : '') +
+          `[CÂU HỎI / YÊU CẦU MỚI NHẤT TỪ "${senderName}"]:\n"${userPrompt}"\n\n` +
+          `[YÊU CẦU]:\nHãy phân tích kỹ bối cảnh các tin nhắn trên (nếu có) để trả lời câu hỏi mới nhất một cách tối ưu, tự nhiên, chính xác và súc tích nhất cho tin nhắn Zalo.`;
       } else {
-        contents = userPrompt;
+        contents = `[BỐI CẢNH ${previousMessages.length} TIN NHẮN GẦN NHẤT TRONG CUỘC TRÒ CHUYỆN]:\n${historyText}\n\n` +
+          `[YÊU CẦU]:\nNgười dùng "${senderName}" vừa gọi AI hỗ trợ. Hãy phân tích kỹ các tin nhắn gần nhất trên và đưa ra câu trả lời hoặc phản hồi tối ưu nhất để tiếp nối, giải quyết vấn đề mọi người đang bàn luận trong cuộc trò chuyện.`;
       }
 
       // 3. Gọi Gemini API với chỉ dẫn hệ thống tối ưu phong cách chat Zalo
@@ -112,7 +115,7 @@ module.exports = {
         contents,
         config: {
           systemInstruction: `Bạn là trợ lý AI thông minh trên ứng dụng Zalo.
-Nhiệm vụ của bạn: Đọc và hiểu sâu 8 tin nhắn gần nhất để tối ưu câu trả lời cho người dùng.
+Nhiệm vụ của bạn: Đọc và hiểu sâu bối cảnh tin nhắn gần nhất để tối ưu câu trả lời cho người dùng.
 
 Quy tắc phản hồi tối ưu:
 - Hiểu ngữ cảnh: Nhận diện chủ đề đang bàn luận, xưng hô phù hợp, giải mã các đại từ thay thế (ví dụ: "chỗ đó", "nó", "quán đấy", "ai", "bao nhiêu").
@@ -123,8 +126,9 @@ Quy tắc phản hồi tối ưu:
 
       const replyText = response.text?.trim() || 'Không nhận được câu trả lời từ AI.';
 
-      // 4. Lưu câu hỏi của người dùng (nếu có) và câu trả lời của AI vào lịch sử để duy trì mạch hội thoại
-      if (userPrompt) {
+      // 4. Lưu câu hỏi của người dùng (nếu gọi bằng lệnh trực tiếp !ai) và câu trả lời của AI vào lịch sử
+      const isDirectCommand = !isAutoReply && !isMentioned && !isQuotingBot;
+      if (userPrompt && isDirectCommand) {
         chatHistory.addMessage(threadId, {
           sender: senderName,
           content: userPrompt,

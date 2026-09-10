@@ -116,9 +116,18 @@ async function searchAndDownloadMusic(query) {
   const streamInfo = await play.stream_from_info(trackObj);
   await new Promise((resolve, reject) => {
     const writeStream = fs.createWriteStream(audioPath);
-    streamInfo.stream.pipe(writeStream);
+    streamInfo.stream.on('error', (err) => {
+      writeStream.destroy();
+      reject(err);
+    });
+    writeStream.on('error', (err) => {
+      if (typeof streamInfo.stream.destroy === 'function') {
+        streamInfo.stream.destroy();
+      }
+      reject(err);
+    });
     writeStream.on('finish', resolve);
-    writeStream.on('error', reject);
+    streamInfo.stream.pipe(writeStream);
   });
 
   return {

@@ -110,13 +110,20 @@ async function authenticate() {
         const isNetworkErr = loginErr.message?.includes('fetch failed') ||
                              loginErr.message?.includes('ETIMEDOUT') ||
                              loginErr.message?.includes('ECONNRESET') ||
-                             loginErr.cause?.code === 'ETIMEDOUT';
+                             loginErr.message?.includes('ENOTFOUND') ||
+                             loginErr.cause?.code === 'ETIMEDOUT' ||
+                             loginErr.cause?.code === 'ECONNRESET';
 
-        if (isNetworkErr && attempt < maxRetries) {
-          logger.warn(`Kết nối tới máy chủ Zalo bị trễ mạng (${loginErr.message}). Đang thử lại sau 3 giây...`);
-          await new Promise(resolve => setTimeout(resolve, 3000));
+        if (isNetworkErr) {
+          if (attempt < maxRetries) {
+            logger.warn(`Kết nối tới máy chủ Zalo bị trễ mạng (${loginErr.message}). Đang thử lại sau 3 giây...`);
+            await new Promise(resolve => setTimeout(resolve, 3000));
+          } else {
+            logger.error(`Đăng nhập bằng session thất bại do sự cố mạng sau ${maxRetries} lần thử: ${loginErr.message}. Giữ nguyên file session.json để không bị mất phiên.`);
+            break;
+          }
         } else {
-          logger.warn(`Đăng nhập bằng session thất bại: ${loginErr.message}. Phiên có thể đã hết hạn hoặc bị chặn kết nối mạng.`);
+          logger.warn(`Đăng nhập bằng session thất bại: ${loginErr.message}. Phiên đăng nhập có thể đã hết hạn.`);
           try {
             if (!process.env.ZALO_SESSION && fs.existsSync(config.sessionPath)) {
               fs.unlinkSync(config.sessionPath);

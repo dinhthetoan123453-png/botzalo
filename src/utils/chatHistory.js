@@ -64,6 +64,29 @@ class ChatHistory {
   }
 
   /**
+   * Lưu lịch sử tin nhắn ra đĩa ngay lập tức (dùng khi tắt bot hoặc cần ghi gấp)
+   */
+  flushSync() {
+    if (this.saveTimeout) {
+      clearTimeout(this.saveTimeout);
+      this.saveTimeout = null;
+    }
+    try {
+      const dir = path.dirname(CACHE_FILE);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      const obj = {};
+      for (const [key, val] of this.history.entries()) {
+        obj[key] = val;
+      }
+      fs.writeFileSync(CACHE_FILE, JSON.stringify(obj, null, 2), 'utf8');
+    } catch (err) {
+      logger.warn(`Không thể ghi file chat_history.json: ${err.message}`);
+    }
+  }
+
+  /**
    * Thêm một tin nhắn vào lịch sử của threadId
    * @param {string|number} rawThreadId 
    * @param {{sender: string, content: string, isSelf?: boolean, timestamp?: number}} msg 

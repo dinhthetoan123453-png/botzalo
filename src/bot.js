@@ -26,6 +26,28 @@ function getRandomDelay(min, max) {
 }
 
 /**
+ * Kiểm tra xem tin nhắn có phải là thông báo hoặc phản hồi hệ thống tự động của bot không,
+ * nhằm loại bỏ khỏi chatHistory để tránh làm ô nhiễm ngữ cảnh AI.
+ */
+function isBotSystemMessage(content) {
+  if (!content || typeof content !== 'string') return false;
+  const text = content.trim();
+  return text.startsWith('Pong!') ||
+         text.startsWith('Echo:') ||
+         text.startsWith('[THÔNG TIN BÀI HÁT]') ||
+         text.startsWith('Audio:') ||
+         text.startsWith('Đang tìm kiếm') ||
+         text.startsWith('DANH SÁCH LỆNH') ||
+         text.startsWith('THÔNG TIN CUỘC TRÒ CHUYỆN:') ||
+         text.startsWith("Lệnh '") ||
+         text.startsWith('Lỗi ') ||
+         text.startsWith('📋 [LỊCH SỬ') ||
+         text.startsWith('Tính năng AI') ||
+         text.startsWith('Vui lòng nhập') ||
+         text.startsWith('Không tìm thấy');
+}
+
+/**
  * Khởi động lắng nghe tin nhắn và xử lý lệnh
  * @param {import('zca-js').API} api
  */
@@ -36,9 +58,11 @@ function startBot(api) {
     try {
       return await originalSendMessage(content, threadId, threadType);
     } catch (err) {
-      if (typeof content === 'object' && content.quote) {
+      if (typeof content === 'object' && content && content.quote) {
         logger.warn(`Không thể gửi tin nhắn dạng trích dẫn (${err.message}). Đang chuyển sang gửi tin nhắn thường...`);
-        return await originalSendMessage({ msg: content.msg }, threadId, threadType);
+        const fallbackContent = { ...content };
+        delete fallbackContent.quote;
+        return await originalSendMessage(fallbackContent, threadId, threadType);
       }
       throw err;
     }
@@ -51,39 +75,6 @@ function startBot(api) {
   api.listener.on('connected', () => {
     logger.success('WebSocket đã kết nối tới máy chủ Zalo!');
     logger.bot(`Bot đang lắng nghe tin nhắn với tiền tố: [ ${config.prefix} ]`);
-
-    // Đồng bộ tin nhắn cũ từ máy chủ Zalo qua WebSocket để AI có sẵn ngữ cảnh ngay khi vừa khởi động
-    setTimeout(() => {
-      try {
-        api.listener.requestOldMessages(ThreadType.Group);
-        api.listener.requestOldMessages(ThreadType.User);
-      } catch (err) {
-        logger.warn('Không thể yêu cầu tin nhắn cũ qua WebSocket:', err.message);
-      }
-    }, 1200);
-  });
-
-  // Lắng nghe các tin nhắn cũ được Zalo gửi về khi vừa kết nối
-  api.listener.on('old_messages', (messages, type) => {
-    if (!Array.isArray(messages)) return;
-    let count = 0;
-    for (const msg of messages) {
-      if (msg.data && typeof msg.data.content === 'string' && msg.data.content.trim()) {
-        const text = msg.data.content.trim();
-        if (!text.startsWith(config.prefix)) {
-          chatHistory.addMessage(msg.threadId, {
-            sender: msg.isSelf ? 'Bot (Bạn)' : (msg.data.dName || 'Thành viên'),
-            content: text,
-            isSelf: msg.isSelf,
-            timestamp: Number(msg.data.ts) || Date.now(),
-          });
-          count++;
-        }
-      }
-    }
-    if (count > 0) {
-      logger.info(`Đã nạp ${count} tin nhắn lịch sử gần nhất (${type === ThreadType.Group ? 'Nhóm' : 'Chat riêng'}) vào bộ nhớ AI.`);
-    }
   });
 
   // Cho phép listener tự động thử lại khi gặp mã đóng 1006 (Abnormal closure do mạng)
@@ -141,9 +132,9 @@ function startBot(api) {
       logger.msg(`[${isGroup ? 'Nhóm' : (isSelf ? 'Chính mình' : 'Riêng')}] ${senderName}: "${rawContent}"`);
 
       // Lưu các tin nhắn thông thường vào lịch sử (chatHistory) để AI nắm bắt ngữ cảnh 8 tin nhắn gần nhất.
-      // Bỏ qua các tin nhắn bắt đầu bằng tiền tố lệnh (!ping, !help, !ai...) để không làm bẩn ngữ cảnh hội thoại.
+      // Bỏ qua các tin nhắn bắt đầu bằng tiền tố lệnh (!ping, !help, !ai...) hoặc phản hồi hệ thống tự động để không làm bẩn ngữ cảnh hội thoại.
       const isCommand = rawContent.startsWith(config.prefix);
-      if (!isCommand) {
+      if (!isCommand && !isBotSystemMessage(rawContent)) {
         chatHistory.addMessage(threadId, {
           sender: isSelf ? 'Bot (Bạn)' : senderName,
           content: rawContent,
@@ -155,8 +146,11 @@ function startBot(api) {
       // Kiểm tra xem tin nhắn có bắt đầu bằng tiền tố lệnh không (ví dụ: !ping, !help, !ai)
       if (isCommand) {
         const fullCommand = rawContent.slice(config.prefix.length).trim();
+        if (!fullCommand) return; // Bỏ qua nếu người dùng chỉ nhắn mỗi ký tự tiền tố lệnh !
+
         const args = fullCommand.split(/\s+/);
         const commandName = args.shift().toLowerCase();
+        if (!commandName) return;
 
         const command = commands.get(commandName);
         if (command) {
@@ -193,7 +187,7 @@ function startBot(api) {
       if (isSelf) return;
 
       // Kiểm tra xem bot có được nhắc đến (tag @bot) hoặc trích dẫn trả lời (quote) trong nhóm không
-      const botUid = api.listener?.ctx?.uid;
+      const botUid = (typeof api.getOwnId === 'function' ? api.getOwnId() : api.listener?.ctx?.uid);
       const isMentioned = isGroup && Array.isArray(message.data?.mentions) && botUid && message.data.mentions.some(m => String(m.uid) === String(botUid));
       const isQuotingBot = isGroup && message.data?.quote && botUid && String(message.data.quote.ownerId) === String(botUid);
 

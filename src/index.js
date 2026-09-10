@@ -15,8 +15,13 @@ const config = require('./config');
 const { authenticate } = require('./auth');
 const { startBot } = require('./bot');
 const logger = require('./utils/logger');
+const chatHistory = require('./utils/chatHistory');
 
 let server = null;
+const botState = {
+  status: 'INITIALIZING', // 'INITIALIZING' | 'ONLINE' | 'ERROR'
+  error: null,
+};
 
 // Khởi động HTTP server nếu có PORT (dùng cho các dịch vụ đám mây như Render, Railway, Koyeb...)
 if (process.env.PORT) {
@@ -27,7 +32,11 @@ if (process.env.PORT) {
     // Endpoint kiểm tra trạng thái hoạt động (Health Check) cho Render / UptimeRobot
     if (url === '/health' || url === '/ping') {
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
-      return res.end(JSON.stringify({ status: 'ok', uptime: Math.floor(process.uptime()), message: 'Zalo Bot is running' }));
+      return res.end(JSON.stringify({
+        status: botState.status === 'ONLINE' ? 'ok' : (botState.status === 'ERROR' ? 'error' : 'starting'),
+        uptime: Math.floor(process.uptime()),
+        message: botState.status === 'ONLINE' ? 'Zalo Bot is running' : `Zalo Bot status: ${botState.status}`,
+      }));
     }
 
     // 1. Xem trực tiếp file ảnh mã QR qua trình duyệt (ví dụ: /qr hoặc /qr.png)
@@ -58,6 +67,7 @@ if (process.env.PORT) {
     .status { display: inline-block; padding: 6px 14px; border-radius: 20px; font-weight: 600; font-size: 14px; margin-bottom: 20px; }
     .status-ok { background: #e7f8ec; color: #0f8a3c; }
     .status-wait { background: #fff8e6; color: #b7791f; }
+    .status-err { background: #fde8e8; color: #c81e1e; }
     .qr-container { margin: 20px 0; }
     .qr-img { width: 260px; height: 260px; border-radius: 12px; border: 3px solid #0068ff; box-shadow: 0 2px 10px rgba(0,104,255,0.15); }
     .note { font-size: 13px; color: #65676b; line-height: 1.5; margin-top: 15px; }
@@ -68,7 +78,12 @@ if (process.env.PORT) {
   <div class="card">
     <h1>Zalo Bot Dashboard</h1>`;
 
-      if (hasQR) {
+      if (botState.status === 'ONLINE') {
+        html += `
+    <div class="status status-ok">Đang hoạt động trực tuyến</div>
+    <p style="color: #0f8a3c; font-size: 16px; margin: 20px 0;">Bot đã kết nối thành công và đang lắng nghe tin nhắn!</p>
+    <p class="note">Tiền tố lệnh: <code>${config.prefix}</code> (Ví dụ: <code>${config.prefix}help</code>, <code>${config.prefix}ping</code>)</p>`;
+      } else if (hasQR) {
         html += `
     <div class="status status-wait">Chờ quét mã QR đăng nhập</div>
     <p>Mở ứng dụng <strong>Zalo</strong> trên điện thoại &gt; Chọn <strong>Quét mã QR</strong> &gt; Quét hình bên dưới:</p>
@@ -77,11 +92,16 @@ if (process.env.PORT) {
     </div>
     <p class="note">Mã QR có hạn sử dụng ngắn. Nếu mã hết hạn, hãy tải lại trang để lấy mã mới.</p>
     <a class="btn" href="javascript:location.reload()">Tải lại trang</a>`;
+      } else if (botState.status === 'ERROR') {
+        html += `
+    <div class="status status-err">Khởi động thất bại</div>
+    <p style="color: #c81e1e; font-size: 15px; margin: 20px 0;">${botState.error || 'Có lỗi xảy ra khi kết nối Zalo.'}</p>
+    <p class="note">Vui lòng kiểm tra lại cấu hình ZALO_SESSION hoặc xem log console.</p>`;
       } else {
         html += `
-    <div class="status status-ok">Đang hoạt động trực tuyến</div>
-    <p style="color: #0f8a3c; font-size: 16px; margin: 20px 0;">Bot đã kết nối thành công và đang lắng nghe tin nhắn!</p>
-    <p class="note">Tiền tố lệnh: <code>${config.prefix}</code> (Ví dụ: <code>${config.prefix}help</code>, <code>${config.prefix}ping</code>)</p>`;
+    <div class="status status-wait">Đang khởi tạo kết nối...</div>
+    <p style="color: #65676b; font-size: 15px; margin: 20px 0;">Đang kết nối tới máy chủ Zalo, vui lòng đợi giây lát...</p>
+    <a class="btn" href="javascript:location.reload()">Tải lại trang</a>`;
       }
 
       html += `
@@ -112,9 +132,12 @@ async function main() {
 
   try {
     const api = await authenticate();
+    botState.status = 'ONLINE';
     startBot(api);
   } catch (error) {
     const errMsg = error.message || String(error);
+    botState.status = 'ERROR';
+    botState.error = errMsg;
     logger.error('Khởi động Bot thất bại:', errMsg);
 
     if (errMsg.includes('Cannot get session') || errMsg.includes('login failed')) {
@@ -138,12 +161,14 @@ async function main() {
 process.on('SIGINT', () => {
   console.log('\n');
   logger.info('Đang tắt Zalo Bot...');
+  chatHistory.flushSync();
   if (server) server.close();
   process.exit(0);
 });
 
 process.on('SIGTERM', () => {
   logger.info('Tiến trình bot đã kết thúc.');
+  chatHistory.flushSync();
   if (server) server.close();
   process.exit(0);
 });
