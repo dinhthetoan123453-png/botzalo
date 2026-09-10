@@ -41,22 +41,22 @@ async function authenticate() {
       logger.info('Tìm thấy cấu hình ZALO_SESSION từ biến môi trường...');
       let str = process.env.ZALO_SESSION.trim();
 
-      // Trường hợp 1: Dạng chuỗi mã hóa Base64
-      if (!str.startsWith('{') && !str.startsWith('[') && !str.startsWith('"')) {
+      // Bỏ dấu nháy kép hoặc nháy đơn ngoài cùng nếu có do copy/paste
+      if ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith("'") && str.endsWith("'"))) {
+        str = str.slice(1, -1).trim();
+      }
+
+      // Trường hợp dạng chuỗi mã hóa Base64
+      if (!str.startsWith('{') && !str.startsWith('[')) {
         try {
           const decoded = Buffer.from(str, 'base64').toString('utf8');
-          if (decoded.startsWith('{')) {
+          if (decoded.startsWith('{') || decoded.startsWith('[')) {
             str = decoded;
           }
         } catch (_) {}
       }
 
-      // Trường hợp 2: Bị bọc dấu nháy kép hoặc nháy đơn ngoài cùng do copy trên web
-      if ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith("'") && str.endsWith("'"))) {
-        str = str.slice(1, -1);
-      }
-
-      // Trường hợp 3: Bị escape dấu ngoặc kép
+      // Trường hợp bị escape dấu ngoặc kép
       if (str.includes('\\"')) {
         str = str.replace(/\\"/g, '"');
       }
@@ -95,11 +95,22 @@ async function authenticate() {
       logger.success('Đăng nhập thành công từ session!');
       return api;
     } catch (loginErr) {
-      logger.warn(`Đăng nhập bằng session thất bại: ${loginErr.message}. Chuyển sang quét mã QR...`);
+      logger.warn(`Đăng nhập bằng session thất bại: ${loginErr.message}. Phiên có thể đã hết hạn hoặc bị thu hồi.`);
+      try {
+        if (fs.existsSync(config.sessionPath)) {
+          fs.unlinkSync(config.sessionPath);
+        }
+      } catch (_) {}
     }
   }
 
   // 2. Nếu không có session hoặc session hết hạn -> Đăng nhập bằng mã QR
+  if (process.env.RENDER || process.env.PORT) {
+    logger.warn('⚠️ Đang chạy trên môi trường Cloud/Render.');
+    logger.warn('⚠️ Zalo thường chặn xác thực quét QR từ IP Datacenter nước ngoài (gây lỗi "Cannot get session, login failed").');
+    logger.warn('👉 Khuyến nghị: Chạy bot ở máy tính cá nhân để quét QR lấy chuỗi ZALO_SESSION mới, sau đó dán vào Render.');
+  }
+
   logger.info('Khởi tạo đăng nhập bằng mã QR...');
 
   const api = await zalo.loginQR(

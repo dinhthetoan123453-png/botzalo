@@ -72,8 +72,7 @@ npm start
 | `info` | `!info` | Xem UID Zalo, tên và thông tin hội thoại. |
 | `echo` | `!echo <nội dung>` | Lặp lại tin nhắn vừa nhập. |
 | `music` | `!music <tên bài hát hoặc link>` | Tìm nhạc từ SoundCloud/Spotify, gửi ảnh bìa và file audio mp3 vào chat. |
-| `nhac` | `!nhac <tên bài hát hoặc link>` | Tên gọi khác của lệnh !music. |
-| `ai` | `!ai <câu hỏi>` | Hỏi đáp với trí tuệ nhân tạo Google Gemini (cần API key trong .env). |
+| `ai` | `!ai [câu hỏi]` | Hỏi đáp với AI Google Gemini. Tự động đọc và phân tích 8 tin nhắn gần nhất để tối ưu câu trả lời (hoặc chỉ gõ `!ai` để AI tự soạn câu trả lời tiếp nối cuộc trò chuyện). |
 
 ---
 
@@ -117,7 +116,12 @@ Các nền tảng hỗ trợ tiến trình chạy ngầm liên tục (Background
    ```bash
    npm start
    ```
-2. Mở file `session.json` vừa được tạo trong thư mục dự án, sao chép toàn bộ nội dung bên trong (chuỗi JSON).
+2. Sau khi quét mã QR trên điện thoại thành công, bot sẽ tự động in chuỗi **MÃ PHIÊN ZALO_SESSION MỚI** (chuỗi Base64) ra terminal và lưu vào `session.json`. Sao chép chuỗi mã phiên này.
+
+> [!CAUTION]
+> **Lưu ý cực kỳ quan trọng về lỗi `Cannot get session, login failed`:**
+> - Máy chủ Render đặt ở nước ngoài (IP Datacenter) nên Zalo sẽ **chặn tính năng quét mã QR trực tiếp trên Render**.
+> - Bạn **không thể** mở web Render để quét mã QR! Bắt buộc phải chạy `npm start` trên máy tính cá nhân (mạng Việt Nam) để lấy mã `ZALO_SESSION`, sau đó dán vào Render.
 
 #### Bước 2: Đẩy mã nguồn lên GitHub
 ```bash
@@ -134,7 +138,7 @@ git push origin master
    - **Build Command**: `npm install`
    - **Start Command**: `npm start`
 4. Vào mục **Environment Variables** (Biến môi trường) và thêm:
-   - `ZALO_SESSION`: Dán toàn bộ nội dung file `session.json` đã copy ở Bước 1.
+   - `ZALO_SESSION`: Dán chuỗi `ZALO_SESSION` đã copy ở Bước 1.
    - `GEMINI_API_KEY`: Điền API key Google Gemini (nếu muốn dùng tính năng AI).
    - `BOT_PREFIX`: `!` (hoặc tiền tố tùy chọn).
    - `AUTO_REPLY_AI`: `false` (hoặc `true`).

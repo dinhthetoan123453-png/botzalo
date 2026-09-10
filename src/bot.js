@@ -1,6 +1,7 @@
 const { ThreadType } = require('zca-js');
 const config = require('./config');
 const logger = require('./utils/logger');
+const chatHistory = require('./utils/chatHistory');
 const { commands, loadCommands } = require('./commands');
 
 /**
@@ -71,8 +72,20 @@ function startBot(api) {
       // In log tin nhắn nhận được ra terminal để bạn dễ dàng theo dõi theo thời gian thực
       logger.msg(`[${isGroup ? 'Nhóm' : (isSelf ? 'Chính mình' : 'Riêng')}] ${senderName}: "${rawContent}"`);
 
-      // Kiểm tra xem tin nhắn có bắt đầu bằng tiền tố lệnh không (ví dụ: !ping, !help)
-      if (rawContent.startsWith(config.prefix)) {
+      // Lưu các tin nhắn thông thường vào lịch sử (chatHistory) để AI nắm bắt ngữ cảnh 8 tin nhắn gần nhất.
+      // Bỏ qua các tin nhắn bắt đầu bằng tiền tố lệnh (!ping, !help, !ai...) để không làm bẩn ngữ cảnh hội thoại.
+      const isCommand = rawContent.startsWith(config.prefix);
+      if (!isCommand) {
+        chatHistory.addMessage(threadId, {
+          sender: isSelf ? 'Bot (Bạn)' : senderName,
+          content: rawContent,
+          isSelf,
+          timestamp: Number(message.data?.ts) || Date.now(),
+        });
+      }
+
+      // Kiểm tra xem tin nhắn có bắt đầu bằng tiền tố lệnh không (ví dụ: !ping, !help, !ai)
+      if (isCommand) {
         const fullCommand = rawContent.slice(config.prefix.length).trim();
         const args = fullCommand.split(/\s+/);
         const commandName = args.shift().toLowerCase();
@@ -111,23 +124,39 @@ function startBot(api) {
       // Bỏ qua tin nhắn thường do chính mình gửi (tránh bot tự trả lời AI với chính nó)
       if (isSelf) return;
 
-      // Xử lý tự động trả lời bằng AI nếu bật AUTO_REPLY_AI và có cấu hình Gemini API Key
-      if (config.autoReplyAi && config.geminiApiKey) {
-        // Chỉ tự động trả lời trong tin nhắn riêng 1-1
-        if (!isGroup) {
-          const aiCmd = commands.get('ai');
-          if (aiCmd) {
-            const delay = getRandomDelay(config.safeDelayMin, config.safeDelayMax);
-            await sleep(delay);
+      // Kiểm tra xem bot có được nhắc đến (tag @bot) hoặc trích dẫn trả lời (quote) trong nhóm không
+      const botUid = api.listener?.ctx?.uid;
+      const isMentioned = isGroup && Array.isArray(message.data?.mentions) && botUid && message.data.mentions.some(m => String(m.uid) === String(botUid));
+      const isQuotingBot = isGroup && message.data?.quote && botUid && String(message.data.quote.ownerId) === String(botUid);
 
-            await aiCmd.execute({
-              api,
-              message,
-              args: rawContent.split(/\s+/),
-              threadId,
-              threadType,
-            });
+      // Điều kiện kích hoạt AI tự động:
+      // 1. Trong nhóm: khi bot được tag (@bot) hoặc khi thành viên trích dẫn trả lời tin nhắn của bot
+      // 2. Trong chat riêng 1-1: khi bật AUTO_REPLY_AI=true
+      const shouldAutoTriggerAI =
+        (isGroup && (isMentioned || isQuotingBot)) ||
+        (!isGroup && config.autoReplyAi);
+
+      if (shouldAutoTriggerAI && config.geminiApiKey) {
+        const aiCmd = commands.get('ai');
+        if (aiCmd) {
+          logger.bot(`Tự động phản hồi AI cho [${senderName}] (Nhóm: ${isGroup ? 'Có' : 'Không'}, Tag: ${!!isMentioned}, Quote: ${!!isQuotingBot})`);
+          const delay = getRandomDelay(config.safeDelayMin, config.safeDelayMax);
+          await sleep(delay);
+
+          // Nếu có tag trong tin nhắn, lọc bỏ phần tag để lấy nội dung câu hỏi sạch
+          let cleanContent = rawContent;
+          if (isMentioned) {
+            cleanContent = cleanContent.replace(/@[^\s]+/g, '').trim();
           }
+
+          await aiCmd.execute({
+            api,
+            message,
+            args: cleanContent ? cleanContent.split(/\s+/) : [],
+            threadId,
+            threadType,
+            isAutoReply: !isGroup && config.autoReplyAi && !isMentioned && !isQuotingBot,
+          });
         }
       }
     } catch (err) {

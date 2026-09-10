@@ -13,6 +13,12 @@ if (process.env.PORT) {
   server = http.createServer((req, res) => {
     const url = req.url || '/';
 
+    // Endpoint kiểm tra trạng thái hoạt động (Health Check) cho Render / UptimeRobot
+    if (url === '/health' || url === '/ping') {
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      return res.end(JSON.stringify({ status: 'ok', uptime: Math.floor(process.uptime()), message: 'Zalo Bot is running' }));
+    }
+
     // 1. Xem trực tiếp file ảnh mã QR qua trình duyệt (ví dụ: /qr hoặc /qr.png)
     if (url === '/qr' || url.startsWith('/qr.png')) {
       if (fs.existsSync(config.qrPath)) {
@@ -78,8 +84,8 @@ if (process.env.PORT) {
     res.end('Not Found');
   });
 
-  server.listen(PORT, () => {
-    logger.info(`Máy chủ HTTP Health Check đang chạy tại cổng ${PORT}`);
+  server.listen(PORT, '0.0.0.0', () => {
+    logger.info(`Máy chủ HTTP Health Check đang chạy tại http://0.0.0.0:${PORT}`);
   });
 }
 
@@ -97,7 +103,22 @@ async function main() {
     const api = await authenticate();
     startBot(api);
   } catch (error) {
-    logger.error('Khởi động Bot thất bại:', error.message || error);
+    const errMsg = error.message || String(error);
+    logger.error('Khởi động Bot thất bại:', errMsg);
+
+    if (errMsg.includes('Cannot get session') || errMsg.includes('login failed')) {
+      console.log('\n' + '='.repeat(65));
+      console.log('💡 HƯỚNG DẪN KHẮC PHỤC LỖI "Cannot get session, login failed":');
+      console.log('1. Zalo chặn xác thực mã QR từ máy chủ Cloud/Render (IP Datacenter nước ngoài).');
+      console.log('2. ĐỂ KHẮC PHỤC TRIỆT ĐỂ:');
+      console.log('   - Chạy bot trên máy tính cá nhân (ở Việt Nam) bằng lệnh: npm start');
+      console.log('   - Mở app Zalo quét mã QR trên màn hình để đăng nhập thành công.');
+      console.log('   - Bot sẽ tự động in chuỗi "MÃ PHIÊN ZALO_SESSION MỚI" ra màn hình.');
+      console.log('   - Sao chép toàn bộ chuỗi đó rồi dán vào biến môi trường ZALO_SESSION trên Render.');
+      console.log('   - Render sẽ tự động khởi động lại và kết nối thành công 24/7!');
+      console.log('='.repeat(65) + '\n');
+    }
+
     process.exit(1);
   }
 }
