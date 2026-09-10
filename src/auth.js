@@ -126,6 +126,11 @@ async function authenticate() {
           try {
             fs.writeFileSync(config.sessionPath, JSON.stringify(event.data, null, 2), 'utf8');
             logger.success('Đã lưu phiên đăng nhập vào session.json! (Lần khởi động sau sẽ tự động đăng nhập)');
+            const b64 = Buffer.from(JSON.stringify(event.data)).toString('base64');
+            console.log('\n' + '='.repeat(60));
+            console.log('📌 MÃ PHIÊN ZALO_SESSION MỚI (LƯU VÀO BIẾN MÔI TRƯỜNG TRÊN RENDER):');
+            console.log(b64);
+            console.log('='.repeat(60) + '\n');
           } catch (saveErr) {
             logger.error('Lỗi khi ghi file session.json:', saveErr);
           }
