@@ -1,6 +1,10 @@
+const net = require('net');
 const dns = require('dns');
 if (typeof dns.setDefaultResultOrder === 'function') {
   dns.setDefaultResultOrder('ipv4first');
+}
+if (typeof net.setDefaultAutoSelectFamily === 'function') {
+  net.setDefaultAutoSelectFamily(false);
 }
 
 const fs = require('fs');

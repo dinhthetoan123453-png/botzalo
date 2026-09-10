@@ -1,3 +1,12 @@
+const net = require('net');
+const dns = require('dns');
+if (typeof dns.setDefaultResultOrder === 'function') {
+  dns.setDefaultResultOrder('ipv4first');
+}
+if (typeof net.setDefaultAutoSelectFamily === 'function') {
+  net.setDefaultAutoSelectFamily(false);
+}
+
 const { ThreadType } = require('zca-js');
 const config = require('./config');
 const logger = require('./utils/logger');
@@ -77,16 +86,42 @@ function startBot(api) {
     }
   });
 
+  // Cho phép listener tự động thử lại khi gặp mã đóng 1006 (Abnormal closure do mạng)
+  try {
+    const socketSettings = api.listener?.ctx?.settings?.features?.socket;
+    if (socketSettings) {
+      if (Array.isArray(socketSettings.close_and_retry_codes) && !socketSettings.close_and_retry_codes.includes(1006)) {
+        socketSettings.close_and_retry_codes.push(1006);
+      }
+      if (socketSettings.retries && !socketSettings.retries['1006']) {
+        socketSettings.retries['1006'] = {
+          max: 10,
+          times: [1000, 2000, 3000, 5000],
+        };
+      }
+    }
+  } catch (_) {}
+
   api.listener.on('disconnected', (code, reason) => {
     logger.warn(`Mất kết nối tới máy chủ Zalo (Mã: ${code}, Lý do: ${reason || 'Không rõ'})`);
   });
 
   api.listener.on('closed', (code, reason) => {
     logger.warn(`WebSocket đã đóng (Mã: ${code}, Lý do: ${reason || 'Không rõ'}). Chú ý: Nếu bạn mở Zalo trên trình duyệt cùng lúc, kết nối bot sẽ tự động ngắt.`);
+    if (code === 1006) {
+      logger.info('Phát hiện kết nối mạng bị gián đoạn (Mã 1006). Đang tự động kết nối lại sau 3 giây...');
+      setTimeout(() => {
+        try {
+          api.listener.start({ retryOnClose: true });
+        } catch (err) {
+          logger.warn(`Thử kết nối lại WebSocket thất bại: ${err.message}`);
+        }
+      }, 3000);
+    }
   });
 
   api.listener.on('error', (err) => {
-    logger.error('Lỗi WebSocket listener:', err);
+    logger.error('Lỗi WebSocket listener:', err.message || err);
   });
 
   // 3. Xử lý tin nhắn đến

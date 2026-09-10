@@ -1,7 +1,12 @@
+const net = require('net');
 const dns = require('dns');
-// Ưu tiên IPv4 thay vì IPv6 để tránh lỗi fetch failed (ETIMEDOUT) trên các máy chủ đám mây (Render, Docker, Railway)
+
+// Ưu tiên IPv4 thay vì IPv6 để tránh lỗi fetch failed và WebSocket ETIMEDOUT trên Cloud (Render, Docker, Railway)
 if (typeof dns.setDefaultResultOrder === 'function') {
   dns.setDefaultResultOrder('ipv4first');
+}
+if (typeof net.setDefaultAutoSelectFamily === 'function') {
+  net.setDefaultAutoSelectFamily(false);
 }
 
 const http = require('http');
