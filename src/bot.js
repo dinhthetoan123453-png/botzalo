@@ -35,8 +35,11 @@ function isBotSystemMessage(content) {
   return text.startsWith('Pong!') ||
          text.startsWith('Echo:') ||
          text.startsWith('[THÔNG TIN BÀI HÁT]') ||
+         text.startsWith('🎬 [THÔNG TIN VIDEO TIKTOK]') ||
          text.startsWith('Audio:') ||
+         text.startsWith('Video:') ||
          text.startsWith('Đang tìm kiếm') ||
+         text.startsWith('Đang tải') ||
          text.startsWith('DANH SÁCH LỆNH') ||
          text.startsWith('THÔNG TIN CUỘC TRÒ CHUYỆN:') ||
          text.startsWith("Lệnh '") ||

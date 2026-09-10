@@ -26,11 +26,14 @@ zalo bot/
 │   │   ├── music.js           # Lệnh !music (tìm và gửi nhạc kèm ảnh bìa)
 │   │   ├── nhac.js            # Lệnh !nhac (alias của !music)
 │   │   ├── ping.js            # Lệnh !ping (kiểm tra độ trễ, uptime)
+│   │   ├── stik.js            # Lệnh !stik (tải video TikTok không logo)
 │   │   └── index.js           # Bộ nạp lệnh tự động
 │   ├── utils/
+│   │   ├── chatHistory.js     # Quản lý bộ nhớ đệm lịch sử chat
 │   │   ├── logger.js          # Ghi log console có màu và timestamp
 │   │   ├── musicHelper.js     # Tìm và tải nhạc từ SoundCloud / Spotify
-│   │   └── qrHelper.js        # Hiển thị QR trên terminal và lưu file qr.png
+│   │   ├── qrHelper.js        # Hiển thị QR trên terminal và lưu file qr.png
+│   │   └── tiktokHelper.js    # Trích xuất và tải video TikTok không logo
 │   ├── auth.js                # Xử lý đăng nhập (session hoặc QR code)
 │   ├── bot.js                 # Lắng nghe tin nhắn, phân loại và điều hướng lệnh
 │   ├── config.js              # Cấu hình dự án từ file .env
@@ -72,11 +75,24 @@ npm start
 | `info` | `!info` | Xem UID Zalo, tên và thông tin hội thoại. |
 | `echo` | `!echo <nội dung>` | Lặp lại tin nhắn vừa nhập. |
 | `music` | `!music <tên bài hát hoặc link>` | Tìm nhạc từ SoundCloud/Spotify, gửi ảnh bìa và file audio mp3 vào chat. |
+| `stik` | `!stik <link video tiktok>` | Tải video TikTok không logo (no watermark) kèm thông tin chi tiết (tác giả, lượt tim, view, âm nhạc). |
 | `ai` | `!ai [câu hỏi]` | Hỏi đáp với AI Google Gemini. Tự động đọc và phân tích 8 tin nhắn gần nhất để tối ưu câu trả lời (hoặc chỉ gõ `!ai` để AI tự soạn câu trả lời tiếp nối cuộc trò chuyện). |
 
 ---
 
-## Chức năng tìm và gửi nhạc
+## Chức năng tải video TikTok không logo (`!stik`)
+
+- **Cú pháp**:
+  - `!stik https://vt.tiktok.com/...`
+  - `!stik https://www.tiktok.com/@user/video/...`
+- **Bot sẽ**:
+  1. Gửi ảnh bìa kèm thông tin chi tiết: Tác giả (Tên & ID), Tiêu đề/Caption, Thời lượng, Âm nhạc nền, Lượt thích, Bình luận, Lượt xem.
+  2. Tải và gửi trực tiếp tệp video `.mp4` không dán logo (no watermark) vào tin nhắn Zalo.
+  3. Tự động xóa file tạm sau khi gửi để bảo toàn dung lượng đĩa.
+
+---
+
+## Chức năng tìm và gửi nhạc (`!music` / `!nhac`)
 
 - Tìm theo tên bài hát bất kỳ trên SoundCloud:
   `!music Chúng ta của tương lai`
