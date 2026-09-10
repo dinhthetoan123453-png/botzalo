@@ -33,18 +33,18 @@ module.exports = {
       return;
     }
 
-    // Gửi thông báo đang xử lý
-    await api.sendMessage(
-      {
-        msg: 'Đang tải và xử lý video TikTok không logo, vui lòng đợi trong giây lát...',
-        quote: message.data,
-      },
-      threadId,
-      threadType
-    );
-
     let result = null;
     try {
+      // Gửi thông báo đang xử lý
+      await api.sendMessage(
+        {
+          msg: 'Đang tải và xử lý video TikTok không logo, vui lòng đợi trong giây lát...',
+          quote: message.data,
+        },
+        threadId,
+        threadType
+      );
+
       result = await downloadTikTokVideo(tiktokUrl);
 
       if (!result) {

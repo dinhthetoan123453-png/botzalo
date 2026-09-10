@@ -134,9 +134,17 @@ function startBot(api) {
       // In log tin nhắn nhận được ra terminal để bạn dễ dàng theo dõi theo thời gian thực
       logger.msg(`[${isGroup ? 'Nhóm' : (isSelf ? 'Chính mình' : 'Riêng')}] ${senderName}: "${rawContent}"`);
 
-      // Lưu các tin nhắn thông thường vào lịch sử (chatHistory) để AI nắm bắt ngữ cảnh 8 tin nhắn gần nhất.
-      // Bỏ qua các tin nhắn bắt đầu bằng tiền tố lệnh (!ping, !help, !ai...) hoặc phản hồi hệ thống tự động để không làm bẩn ngữ cảnh hội thoại.
-      const isCommand = rawContent.startsWith(config.prefix);
+      // Kiểm tra xem tin nhắn có bắt đầu bằng tiền tố lệnh không (hỗ trợ cả config.prefix, / và !)
+      let prefixUsed = null;
+      if (rawContent.startsWith(config.prefix)) {
+        prefixUsed = config.prefix;
+      } else if (rawContent.startsWith('/')) {
+        prefixUsed = '/';
+      } else if (rawContent.startsWith('!')) {
+        prefixUsed = '!';
+      }
+
+      const isCommand = Boolean(prefixUsed);
       if (!isCommand && !isBotSystemMessage(rawContent)) {
         chatHistory.addMessage(threadId, {
           sender: isSelf ? 'Bot (Bạn)' : senderName,
@@ -146,10 +154,10 @@ function startBot(api) {
         });
       }
 
-      // Kiểm tra xem tin nhắn có bắt đầu bằng tiền tố lệnh không (ví dụ: !ping, !help, !ai)
+      // Kiểm tra xem tin nhắn có bắt đầu bằng tiền tố lệnh không (ví dụ: !stik, /stik, !ping, /ping)
       if (isCommand) {
-        const fullCommand = rawContent.slice(config.prefix.length).trim();
-        if (!fullCommand) return; // Bỏ qua nếu người dùng chỉ nhắn mỗi ký tự tiền tố lệnh !
+        const fullCommand = rawContent.slice(prefixUsed.length).trim();
+        if (!fullCommand) return; // Bỏ qua nếu người dùng chỉ nhắn mỗi ký tự tiền tố lệnh ! hoặc /
 
         const args = fullCommand.split(/\s+/);
         const commandName = args.shift().toLowerCase();
@@ -175,7 +183,7 @@ function startBot(api) {
           if (!isGroup) {
             await api.sendMessage(
               {
-                msg: `Lệnh '${config.prefix}${commandName}' không tồn tại. Gõ '${config.prefix}help' để xem danh sách lệnh.`,
+                msg: `Lệnh '${prefixUsed}${commandName}' không tồn tại. Gõ '${prefixUsed}help' để xem danh sách lệnh.`,
                 quote: message.data,
               },
               threadId,

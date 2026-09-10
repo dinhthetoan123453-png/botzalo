@@ -33,12 +33,19 @@ function formatDuration(seconds) {
 }
 
 /**
- * Trích xuất liên kết TikTok từ đoạn văn bản
+ * Trích xuất liên kết TikTok từ đoạn văn bản (hỗ trợ mọi định dạng: vt, vm, v, vn, m, www... và có hoặc không có https://)
  */
 function extractTikTokUrl(text) {
   if (!text || typeof text !== 'string') return null;
-  const match = text.match(/https?:\/\/(?:www\.|vt\.|vm\.|m\.)?tiktok\.com\/[^\s]+/i);
-  return match ? match[0] : null;
+  const match = text.match(/(?:https?:\/\/)?(?:[a-zA-Z0-9_-]+\.)?tiktok\.com\/[^\s]+/i);
+  if (match) {
+    let url = match[0];
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://' + url;
+    }
+    return url;
+  }
+  return null;
 }
 
 /**
