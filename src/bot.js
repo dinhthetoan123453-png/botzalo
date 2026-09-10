@@ -12,6 +12,8 @@ const config = require('./config');
 const logger = require('./utils/logger');
 const chatHistory = require('./utils/chatHistory');
 const { commands, loadCommands } = require('./commands');
+const { applyZcaPatches } = require('./utils/patchZca');
+const { extractTikTokUrl } = require('./utils/tiktokHelper');
 
 /**
  * Hàm tạo khoảng nghỉ ngẫu nhiên để mô phỏng hành vi gõ phím của người thật,
@@ -36,6 +38,11 @@ function isBotSystemMessage(content) {
          text.startsWith('Echo:') ||
          text.startsWith('[THÔNG TIN BÀI HÁT]') ||
          text.startsWith('🎬 [THÔNG TIN VIDEO TIKTOK]') ||
+         text.startsWith('⏳ Đang tải và xử lý video TikTok') ||
+         text.startsWith('🎥 Video:') ||
+         text.startsWith('⚠️ Không thể gửi tệp video') ||
+         text.startsWith('❌ ') ||
+         text.startsWith('📌 ') ||
          text.startsWith('Audio:') ||
          text.startsWith('Video:') ||
          text.startsWith('Đang tìm kiếm') ||
@@ -55,6 +62,9 @@ function isBotSystemMessage(content) {
  * @param {import('zca-js').API} api
  */
 function startBot(api) {
+  // Áp dụng bản vá sửa lỗi treo uploadAttachment (video & file nhiều chunk) trong thư viện zca-js
+  applyZcaPatches(api);
+
   // Bọc api.sendMessage để tự động thử lại khi tính năng quote (trích dẫn) bị lỗi ở một số hội thoại (ví dụ Cloud của tôi)
   const originalSendMessage = api.sendMessage.bind(api);
   api.sendMessage = async function (content, threadId, threadType) {
@@ -196,6 +206,25 @@ function startBot(api) {
 
       // Bỏ qua tin nhắn thường do chính mình gửi (tránh bot tự trả lời AI với chính nó)
       if (isSelf) return;
+
+      // Kiểm tra xem người dùng có gửi liên kết TikTok trực tiếp không (tiện lợi khi quên gõ lệnh !stik)
+      const directTikTokUrl = extractTikTokUrl(rawContent);
+      if (directTikTokUrl && (!isGroup || isMentioned || isQuotingBot)) {
+        const stikCmd = commands.get('stik');
+        if (stikCmd) {
+          logger.bot(`Tự động kích hoạt tải video TikTok từ liên kết của [${senderName}]`);
+          const delay = getRandomDelay(config.safeDelayMin, config.safeDelayMax);
+          await sleep(delay);
+          await stikCmd.execute({
+            api,
+            message,
+            args: [directTikTokUrl],
+            threadId,
+            threadType,
+          });
+          return;
+        }
+      }
 
       // Kiểm tra xem bot có được nhắc đến (tag @bot) hoặc trích dẫn trả lời (quote) trong nhóm không
       const botUid = (typeof api.getOwnId === 'function' ? api.getOwnId() : api.listener?.ctx?.uid);

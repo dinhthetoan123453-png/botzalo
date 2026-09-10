@@ -16,13 +16,18 @@ function loadCommands() {
 
       if (command.name && typeof command.execute === 'function') {
         commands.set(command.name.toLowerCase(), command);
+        if (Array.isArray(command.aliases)) {
+          for (const alias of command.aliases) {
+            commands.set(alias.toLowerCase(), command);
+          }
+        }
       }
     } catch (err) {
       logger.error(`Lỗi tải lệnh từ file ${file}:`, err);
     }
   }
 
-  logger.info(`Đã tải thành công ${commands.size} lệnh bot: [${Array.from(commands.keys()).join(', ')}]`);
+  logger.info(`Đã tải thành công ${commands.size} tên lệnh (bao gồm tên rút gọn): [${Array.from(commands.keys()).join(', ')}]`);
   return commands;
 }
 

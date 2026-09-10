@@ -70,23 +70,26 @@ npm start
 
 | Lệnh | Cú pháp | Mô tả |
 | :--- | :--- | :--- |
-| `ping` | `!ping` | Kiểm tra độ trễ mạng và thời gian bot hoạt động. |
-| `help` | `!help` | Xem toàn bộ danh sách lệnh. |
-| `info` | `!info` | Xem UID Zalo, tên và thông tin hội thoại. |
+| `ping` | `!ping` (hoặc `/ping`) | Kiểm tra độ trễ mạng và thời gian bot hoạt động. |
+| `help` | `!help` (hoặc `/help`) | Xem toàn bộ danh sách lệnh. |
+| `info` | `!info` (hoặc `/info`) | Xem UID Zalo, tên và thông tin hội thoại. |
 | `echo` | `!echo <nội dung>` | Lặp lại tin nhắn vừa nhập. |
-| `music` | `!music <tên bài hát hoặc link>` | Tìm nhạc từ SoundCloud/Spotify, gửi ảnh bìa và file audio mp3 vào chat. |
-| `stik` | `!stik <link video tiktok>` | Tải video TikTok không logo (no watermark) kèm thông tin chi tiết (tác giả, lượt tim, view, âm nhạc). |
+| `music` / `nhac` | `!music` / `!nhac <tên hoặc link>` | Tìm nhạc từ SoundCloud/Spotify, gửi ảnh bìa và file audio mp3 vào chat. |
+| `stik` / `tik` / `tiktok` | `!stik <link>` / `!tik <link>` / `!tiktok <link>` | Tải video TikTok không logo (no watermark) kèm thông tin chi tiết (tác giả, tim, view, nhạc, link tải trực tiếp). |
 | `ai` | `!ai [câu hỏi]` | Hỏi đáp với AI Google Gemini. Tự động đọc và phân tích 8 tin nhắn gần nhất để tối ưu câu trả lời (hoặc chỉ gõ `!ai` để AI tự soạn câu trả lời tiếp nối cuộc trò chuyện). |
 
 ---
 
-## Chức năng tải video TikTok không logo (`!stik`)
+## Chức năng tải video TikTok không logo (`!stik` / `!tik` / `!tiktok`)
 
 - **Cú pháp**:
   - `!stik https://vt.tiktok.com/...`
-  - `!stik https://www.tiktok.com/@user/video/...`
+  - `/stik https://vt.tiktok.com/...`
+  - `!tik https://www.tiktok.com/@user/video/...`
+  - `!tiktok https://www.tiktok.com/@user/video/...`
+  - **Tự động tải**: Trong chat 1-1 riêng với bot hoặc khi tag bot trong nhóm, bạn có thể chỉ cần gửi trực tiếp đường link TikTok mà không cần gõ lệnh.
 - **Bot sẽ**:
-  1. Gửi ảnh bìa kèm thông tin chi tiết: Tác giả (Tên & ID), Tiêu đề/Caption, Thời lượng, Âm nhạc nền, Lượt thích, Bình luận, Lượt xem.
+  1. Gửi ảnh bìa kèm thông tin chi tiết: Tác giả (Tên & ID), Tiêu đề/Caption, Thời lượng, Âm nhạc nền, Lượt thích, Bình luận, Lượt xem, kèm đường dẫn tải trực tiếp không logo chất lượng cao.
   2. Tải và gửi trực tiếp tệp video `.mp4` không dán logo (no watermark) vào tin nhắn Zalo.
   3. Tự động xóa file tạm sau khi gửi để bảo toàn dung lượng đĩa.
 
