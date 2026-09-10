@@ -9,6 +9,8 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 20
+      - key: NODE_OPTIONS
+        value: "--dns-result-order=ipv4first"
       - key: BOT_PREFIX
         value: "!"
       - key: AUTO_REPLY_AI

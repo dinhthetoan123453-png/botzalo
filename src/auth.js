@@ -1,3 +1,8 @@
+const dns = require('dns');
+if (typeof dns.setDefaultResultOrder === 'function') {
+  dns.setDefaultResultOrder('ipv4first');
+}
+
 const fs = require('fs');
 const { Zalo, LoginQRCallbackEventType } = require('zca-js');
 const { imageSize } = require('image-size');
@@ -84,23 +89,38 @@ async function authenticate() {
   }
 
   if (sessionData && sessionData.cookie && sessionData.imei) {
-    try {
-      const api = await zalo.login({
-        cookie: sessionData.cookie,
-        imei: sessionData.imei,
-        userAgent: sessionData.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0',
-        language: 'vi',
-      });
-
-      logger.success('Đăng nhập thành công từ session!');
-      return api;
-    } catch (loginErr) {
-      logger.warn(`Đăng nhập bằng session thất bại: ${loginErr.message}. Phiên có thể đã hết hạn hoặc bị thu hồi.`);
+    const maxRetries = 3;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        if (fs.existsSync(config.sessionPath)) {
-          fs.unlinkSync(config.sessionPath);
+        logger.info(`Đang kết nối phiên đăng nhập Zalo (Lần thử ${attempt}/${maxRetries})...`);
+        const api = await zalo.login({
+          cookie: sessionData.cookie,
+          imei: sessionData.imei,
+          userAgent: sessionData.userAgent || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0',
+          language: 'vi',
+        });
+
+        logger.success('Đăng nhập thành công từ session!');
+        return api;
+      } catch (loginErr) {
+        const isNetworkErr = loginErr.message?.includes('fetch failed') ||
+                             loginErr.message?.includes('ETIMEDOUT') ||
+                             loginErr.message?.includes('ECONNRESET') ||
+                             loginErr.cause?.code === 'ETIMEDOUT';
+
+        if (isNetworkErr && attempt < maxRetries) {
+          logger.warn(`Kết nối tới máy chủ Zalo bị trễ mạng (${loginErr.message}). Đang thử lại sau 3 giây...`);
+          await new Promise(resolve => setTimeout(resolve, 3000));
+        } else {
+          logger.warn(`Đăng nhập bằng session thất bại: ${loginErr.message}. Phiên có thể đã hết hạn hoặc bị chặn kết nối mạng.`);
+          try {
+            if (!process.env.ZALO_SESSION && fs.existsSync(config.sessionPath)) {
+              fs.unlinkSync(config.sessionPath);
+            }
+          } catch (_) {}
+          break;
         }
-      } catch (_) {}
+      }
     }
   }
 

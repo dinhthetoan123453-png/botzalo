@@ -1,3 +1,9 @@
+const dns = require('dns');
+// Ưu tiên IPv4 thay vì IPv6 để tránh lỗi fetch failed (ETIMEDOUT) trên các máy chủ đám mây (Render, Docker, Railway)
+if (typeof dns.setDefaultResultOrder === 'function') {
+  dns.setDefaultResultOrder('ipv4first');
+}
+
 const http = require('http');
 const fs = require('fs');
 const config = require('./config');

@@ -11,6 +11,7 @@ COPY . .
 
 # Mở cổng cho Health Check
 ENV PORT=3000
+ENV NODE_OPTIONS="--dns-result-order=ipv4first"
 EXPOSE 3000
 
 # Khởi chạy bot
