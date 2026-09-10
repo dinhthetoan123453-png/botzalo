@@ -39,9 +39,35 @@ async function authenticate() {
   if (process.env.ZALO_SESSION) {
     try {
       logger.info('Tìm thấy cấu hình ZALO_SESSION từ biến môi trường...');
-      sessionData = JSON.parse(process.env.ZALO_SESSION);
+      let str = process.env.ZALO_SESSION.trim();
+
+      // Trường hợp 1: Dạng chuỗi mã hóa Base64
+      if (!str.startsWith('{') && !str.startsWith('[') && !str.startsWith('"')) {
+        try {
+          const decoded = Buffer.from(str, 'base64').toString('utf8');
+          if (decoded.startsWith('{')) {
+            str = decoded;
+          }
+        } catch (_) {}
+      }
+
+      // Trường hợp 2: Bị bọc dấu nháy kép hoặc nháy đơn ngoài cùng do copy trên web
+      if ((str.startsWith('"') && str.endsWith('"')) || (str.startsWith("'") && str.endsWith("'"))) {
+        str = str.slice(1, -1);
+      }
+
+      // Trường hợp 3: Bị escape dấu ngoặc kép
+      if (str.includes('\\"')) {
+        str = str.replace(/\\"/g, '"');
+      }
+
+      let parsed = JSON.parse(str);
+      if (typeof parsed === 'string') {
+        parsed = JSON.parse(parsed);
+      }
+      sessionData = parsed;
     } catch (e) {
-      logger.warn('Biến môi trường ZALO_SESSION không phải là chuỗi JSON hợp lệ.');
+      logger.warn(`Biến môi trường ZALO_SESSION không phải là chuỗi JSON hợp lệ (${e.message}).`);
     }
   }
 
