@@ -42,6 +42,39 @@ function startBot(api) {
   api.listener.on('connected', () => {
     logger.success('WebSocket đã kết nối tới máy chủ Zalo!');
     logger.bot(`Bot đang lắng nghe tin nhắn với tiền tố: [ ${config.prefix} ]`);
+
+    // Đồng bộ tin nhắn cũ từ máy chủ Zalo qua WebSocket để AI có sẵn ngữ cảnh ngay khi vừa khởi động
+    setTimeout(() => {
+      try {
+        api.listener.requestOldMessages(ThreadType.Group);
+        api.listener.requestOldMessages(ThreadType.User);
+      } catch (err) {
+        logger.warn('Không thể yêu cầu tin nhắn cũ qua WebSocket:', err.message);
+      }
+    }, 1200);
+  });
+
+  // Lắng nghe các tin nhắn cũ được Zalo gửi về khi vừa kết nối
+  api.listener.on('old_messages', (messages, type) => {
+    if (!Array.isArray(messages)) return;
+    let count = 0;
+    for (const msg of messages) {
+      if (msg.data && typeof msg.data.content === 'string' && msg.data.content.trim()) {
+        const text = msg.data.content.trim();
+        if (!text.startsWith(config.prefix)) {
+          chatHistory.addMessage(msg.threadId, {
+            sender: msg.isSelf ? 'Bot (Bạn)' : (msg.data.dName || 'Thành viên'),
+            content: text,
+            isSelf: msg.isSelf,
+            timestamp: Number(msg.data.ts) || Date.now(),
+          });
+          count++;
+        }
+      }
+    }
+    if (count > 0) {
+      logger.info(`Đã nạp ${count} tin nhắn lịch sử gần nhất (${type === ThreadType.Group ? 'Nhóm' : 'Chat riêng'}) vào bộ nhớ AI.`);
+    }
   });
 
   api.listener.on('disconnected', (code, reason) => {

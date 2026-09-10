@@ -33,12 +33,38 @@ module.exports = {
     const hasArgs = Boolean(args && args.length > 0);
     const userPrompt = hasArgs ? args.join(' ').trim() : '';
     const senderName = message.data?.dName || 'Người dùng';
-    const isGroup = threadType === ThreadType.Group;
     const historyLimit = config.aiHistoryLimit || 8;
 
+    // Tính năng phụ: Gõ "!ai xem" hoặc "!ai history" để kiểm tra danh sách tin nhắn ngữ cảnh đang lưu
+    if (userPrompt.toLowerCase() === 'xem' || userPrompt.toLowerCase() === 'history') {
+      const msgs = chatHistory.getHistory(threadId, historyLimit);
+      if (msgs.length === 0) {
+        await api.sendMessage(
+          {
+            msg: 'Hiện chưa có tin nhắn nào được lưu trong bộ nhớ ngữ cảnh của cuộc trò chuyện này.',
+            quote: message.data,
+          },
+          threadId,
+          threadType
+        );
+        return;
+      }
+
+      const formatted = chatHistory.formatForPrompt(msgs);
+      await api.sendMessage(
+        {
+          msg: `📋 [LỊCH SỬ ${msgs.length} TIN NHẮN NGỮ CẢNH GẦN NHẤT]:\n\n${formatted}\n\n💡 AI sẽ tự động tham khảo các tin nhắn trên khi bạn gọi !ai.`,
+          quote: message.data,
+        },
+        threadId,
+        threadType
+      );
+      return;
+    }
+
     try {
-      // 1. Lấy lịch sử 8 tin nhắn gần nhất trong cuộc hội thoại (kèm Zalo Group API nếu cần)
-      const fullHistory = await chatHistory.getHistoryWithFallback(api, threadId, isGroup, historyLimit + 2);
+      // 1. Lấy lịch sử các tin nhắn gần nhất trong cuộc hội thoại từ bộ nhớ
+      const fullHistory = chatHistory.getHistory(threadId, historyLimit + 5);
 
       // Lọc bỏ tin nhắn kích hoạt hiện tại để không bị trùng lặp ngữ cảnh
       const rawCurrent = message.data?.content?.trim() || '';
@@ -46,10 +72,11 @@ module.exports = {
         .filter(m => {
           if (!m || !m.content) return false;
           if (m.content === rawCurrent) return false;
-          if (rawCurrent.startsWith(config.prefix) && m.content.startsWith(config.prefix)) return false;
           return true;
         })
         .slice(-historyLimit);
+
+      logger.bot(`[AI] Xử lý yêu cầu cho [${senderName}] với ${previousMessages.length} tin nhắn ngữ cảnh gần nhất (Thread: ${threadId})`);
 
       // Kiểm tra nếu không có câu hỏi VÀ cũng chưa có bất kỳ tin nhắn lịch sử nào
       if (!userPrompt && previousMessages.length === 0) {
@@ -90,12 +117,16 @@ Nhiệm vụ của bạn: Đọc và hiểu sâu 8 tin nhắn gần nhất để
 Quy tắc phản hồi tối ưu:
 - Hiểu ngữ cảnh: Nhận diện chủ đề đang bàn luận, xưng hô phù hợp, giải mã các đại từ thay thế (ví dụ: "chỗ đó", "nó", "quán đấy", "ai", "bao nhiêu").
 - Phong cách nhắn tin Zalo: Trả lời bằng tiếng Việt tự nhiên, thân thiện, ngắn gọn, súc tích, đi thẳng vào trọng tâm (1-3 câu hoặc vài gạch đầu dòng rõ ràng).
-- Tuyệt đối không lặp lại máy móc danh sách các tin nhắn cũ và không nói các câu sáo rỗng như "dựa trên 8 tin nhắn...".
 - Trực tiếp giải quyết câu hỏi hoặc nhu cầu của người dùng.`,
         },
       });
 
-      const replyText = response.text?.trim() || 'Không nhận được câu trả lời từ AI.';
+      let replyText = response.text?.trim() || 'Không nhận được câu trả lời từ AI.';
+
+      // Thêm thông tin chú thích số lượng tin nhắn ngữ cảnh đã tham khảo để người dùng dễ theo dõi
+      if (previousMessages.length > 0) {
+        replyText += `\n\n💡 (Đã tối ưu câu trả lời dựa trên ${previousMessages.length} tin nhắn gần nhất)`;
+      }
 
       // 4. Lưu câu hỏi của người dùng (nếu có) và câu trả lời của AI vào lịch sử để duy trì mạch hội thoại
       if (userPrompt) {

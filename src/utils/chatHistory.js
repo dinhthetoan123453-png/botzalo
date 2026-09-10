@@ -1,4 +1,8 @@
+const fs = require('fs');
+const path = require('path');
 const logger = require('./logger');
+
+const CACHE_FILE = path.join(__dirname, '../../temp/chat_history.json');
 
 /**
  * Quản lý lịch sử tin nhắn gần nhất theo từng cuộc hội thoại (threadId)
@@ -10,15 +14,63 @@ class ChatHistory {
     this.maxThreads = maxThreads;
     /** @type {Map<string, Array<{sender: string, content: string, isSelf: boolean, timestamp: number}>>} */
     this.history = new Map();
+    this.saveTimeout = null;
+
+    this.loadFromDisk();
+  }
+
+  /**
+   * Nạp lịch sử tin nhắn từ file lưu trữ nếu có
+   */
+  loadFromDisk() {
+    try {
+      if (fs.existsSync(CACHE_FILE)) {
+        const raw = fs.readFileSync(CACHE_FILE, 'utf8');
+        const data = JSON.parse(raw);
+        if (data && typeof data === 'object') {
+          for (const [key, msgs] of Object.entries(data)) {
+            if (Array.isArray(msgs)) {
+              this.history.set(String(key), msgs.slice(-this.maxPerThread));
+            }
+          }
+          logger.info(`Đã khôi phục lịch sử chat cho ${this.history.size} hội thoại từ bộ nhớ lưu trữ.`);
+        }
+      }
+    } catch (err) {
+      logger.warn(`Không thể đọc file chat_history.json: ${err.message}`);
+    }
+  }
+
+  /**
+   * Lưu lịch sử tin nhắn ra đĩa (debounce 2 giây để tối ưu I/O)
+   */
+  saveToDisk() {
+    if (this.saveTimeout) clearTimeout(this.saveTimeout);
+    this.saveTimeout = setTimeout(() => {
+      try {
+        const dir = path.dirname(CACHE_FILE);
+        if (!fs.existsSync(dir)) {
+          fs.mkdirSync(dir, { recursive: true });
+        }
+        const obj = {};
+        for (const [key, val] of this.history.entries()) {
+          obj[key] = val;
+        }
+        fs.writeFileSync(CACHE_FILE, JSON.stringify(obj, null, 2), 'utf8');
+      } catch (err) {
+        logger.warn(`Không thể lưu file chat_history.json: ${err.message}`);
+      }
+    }, 2000);
   }
 
   /**
    * Thêm một tin nhắn vào lịch sử của threadId
-   * @param {string} threadId 
+   * @param {string|number} rawThreadId 
    * @param {{sender: string, content: string, isSelf?: boolean, timestamp?: number}} msg 
    */
-  addMessage(threadId, { sender, content, isSelf = false, timestamp = Date.now() }) {
-    if (!threadId || !content || typeof content !== 'string') return;
+  addMessage(rawThreadId, { sender, content, isSelf = false, timestamp = Date.now() }) {
+    if (!rawThreadId || !content || typeof content !== 'string') return;
+    const threadId = String(rawThreadId);
     const cleanContent = content.trim();
     if (!cleanContent) return;
 
@@ -45,72 +97,42 @@ class ChatHistory {
     list.push({
       sender: sender || (isSelf ? 'Bot (Bạn)' : 'Người dùng'),
       content: cleanContent,
-      isSelf: !!isSelf,
+      isSelf: Boolean(isSelf),
       timestamp: Number(timestamp) || Date.now(),
     });
 
-    // Luôn đảm bảo danh sách tin nhắn được sắp xếp đúng thứ tự thời gian tăng dần
+    // Luôn sắp xếp theo thứ tự thời gian tăng dần
     list.sort((a, b) => a.timestamp - b.timestamp);
 
     // Giữ tối đa maxPerThread tin nhắn gần nhất
     if (list.length > this.maxPerThread) {
       list.splice(0, list.length - this.maxPerThread);
     }
+
+    this.saveToDisk();
   }
 
   /**
    * Lấy danh sách tin nhắn gần nhất trong bộ nhớ
-   * @param {string} threadId 
+   * @param {string|number} rawThreadId 
    * @param {number} limit 
    * @returns {Array<{sender: string, content: string, isSelf: boolean, timestamp: number}>}
    */
-  getRecentMessages(threadId, limit = 8) {
+  getRecentMessages(rawThreadId, limit = 8) {
+    if (!rawThreadId) return [];
+    const threadId = String(rawThreadId);
     const list = this.history.get(threadId) || [];
     return list.slice(-limit);
   }
 
   /**
-   * Lấy lịch sử tin nhắn, có hỗ trợ gọi API Zalo nếu trong nhóm và bộ nhớ chưa đủ
-   * @param {import('zca-js').API} api 
-   * @param {string} threadId 
-   * @param {boolean} isGroup 
+   * Lấy lịch sử tin nhắn cho hội thoại
+   * @param {string|number} rawThreadId 
    * @param {number} limit 
-   * @returns {Promise<Array<{sender: string, content: string, isSelf: boolean, timestamp: number}>>}
+   * @returns {Array<{sender: string, content: string, isSelf: boolean, timestamp: number}>}
    */
-  async getHistoryWithFallback(api, threadId, isGroup, limit = 8) {
-    let localMessages = this.getRecentMessages(threadId, limit);
-
-    // Nếu trong nhóm và chưa đủ số tin nhắn trong bộ nhớ cache, thử lấy từ lịch sử Zalo Group
-    if (isGroup && localMessages.length < limit && api && typeof api.getGroupChatHistory === 'function') {
-      try {
-        const historyRes = await api.getGroupChatHistory(threadId, limit * 2);
-        if (historyRes && Array.isArray(historyRes.groupMsgs)) {
-          // Sắp xếp groupMsgs theo thứ tự thời gian tăng dần trước khi nạp vào cache
-          const sortedMsgs = [...historyRes.groupMsgs].sort((a, b) => {
-            const tsA = Number(a?.data?.ts || 0);
-            const tsB = Number(b?.data?.ts || 0);
-            return tsA - tsB;
-          });
-
-          for (const item of sortedMsgs) {
-            const data = item.data;
-            if (data && typeof data.content === 'string' && data.content.trim()) {
-              this.addMessage(threadId, {
-                sender: data.dName || (item.isSelf ? 'Bot (Bạn)' : 'Thành viên'),
-                content: data.content,
-                isSelf: item.isSelf,
-                timestamp: Number(data.ts) || Date.now(),
-              });
-            }
-          }
-          localMessages = this.getRecentMessages(threadId, limit);
-        }
-      } catch (err) {
-        logger.warn(`Không thể lấy lịch sử nhóm qua API (${err.message}). Sử dụng cache cục bộ.`);
-      }
-    }
-
-    return localMessages;
+  getHistory(rawThreadId, limit = 8) {
+    return this.getRecentMessages(rawThreadId, limit);
   }
 
   /**
@@ -130,10 +152,12 @@ class ChatHistory {
 
   /**
    * Xóa lịch sử của một cuộc hội thoại
-   * @param {string} threadId 
+   * @param {string|number} rawThreadId 
    */
-  clearThread(threadId) {
+  clearThread(rawThreadId) {
+    const threadId = String(rawThreadId);
     this.history.delete(threadId);
+    this.saveToDisk();
   }
 }
 
