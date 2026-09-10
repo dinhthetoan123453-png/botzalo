@@ -12,7 +12,7 @@ module.exports = {
       await safeSendMessage(
         api,
         {
-          msg: '📌 Vui lòng nhập liên kết video TikTok cần tải.\n\nVí dụ:\n!stik https://vt.tiktok.com/ZSjR1p5kF/\n!stik https://www.tiktok.com/@tiktok/video/7106594312292453675',
+          msg: '📌 Vui lòng nhập liên kết video TikTok cần tải.\n\nVí dụ:\n!stik https://vt.tiktok.com/ZSqUturPA/\n!stik https://www.tiktok.com/@tiktok/video/7106594312292453675',
           quote: message.data,
         },
         threadId,
@@ -76,18 +76,26 @@ module.exports = {
         `📊 Tương tác: ❤️ ${result.likes} | 💬 ${result.comments} | 👁️ ${result.views}\n` +
         `🔗 Link tải trực tiếp không logo:\n${result.downloadUrl}`;
 
+      let infoSent = false;
       if (result.coverPath) {
-        await safeSendMessage(
-          api,
-          {
-            msg: infoMsg,
-            attachments: [result.coverPath],
-            quote: message.data,
-          },
-          threadId,
-          threadType
-        );
-      } else {
+        try {
+          await safeSendMessage(
+            api,
+            {
+              msg: infoMsg,
+              attachments: [result.coverPath],
+              quote: message.data,
+            },
+            threadId,
+            threadType
+          );
+          infoSent = true;
+        } catch (coverErr) {
+          logger.warn('Không thể gửi kèm ảnh bìa, chuyển sang gửi dạng text:', coverErr.message || coverErr);
+        }
+      }
+
+      if (!infoSent) {
         await safeSendMessage(
           api,
           {
@@ -99,10 +107,10 @@ module.exports = {
         );
       }
 
-      // 2. Gửi tệp video MP4 không dán logo lên chat Zalo (nếu đã tải về temp)
+      // 2. Gửi tệp video MP4 không dán logo lên thẳng đoạn chat Zalo
       if (result.videoPath) {
         try {
-          logger.info(`Đang tải video TikTok lên Zalo: ${result.videoPath}`);
+          logger.info(`Đang tải tệp video TikTok lên đoạn chat Zalo: ${result.videoPath}`);
           const caption = `🎥 Video: ${result.title.slice(0, 100)}`;
           await safeSendMessage(
             api,
@@ -119,7 +127,7 @@ module.exports = {
           await safeSendMessage(
             api,
             {
-              msg: `⚠️ Không thể gửi tệp video trực tiếp qua Zalo (${uploadErr.message || 'vượt quá giới hạn hoặc nghẽn mạng'}).\n👉 Bạn hãy bấm vào liên kết ở tin nhắn thông tin bên trên để xem hoặc tải video về máy nhé!`,
+              msg: `⚠️ Không thể tải tệp video trực tiếp lên chat Zalo (${uploadErr.message || 'vượt quá giới hạn hoặc nghẽn mạng'}).\n👉 Bạn hãy bấm vào liên kết ở tin nhắn thông tin bên trên để xem hoặc tải video về máy nhé!`,
             },
             threadId,
             threadType

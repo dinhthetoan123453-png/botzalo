@@ -32,6 +32,19 @@ function applyZcaPatches(api) {
     return;
   }
 
+  // Tạo các helper đã liên kết với ctx để gọi makeURL, encodeAES, request đúng tham số
+  const boundUtils = {
+    makeURL(baseURL, params, apiVersion) {
+      return utils.makeURL(ctx, baseURL, params, apiVersion);
+    },
+    encodeAES(data, t) {
+      return utils.encodeAES(ctx.secretKey, data, t);
+    },
+    request(url, options, raw) {
+      return utils.request(ctx, url, options, raw);
+    },
+  };
+
   const serviceURL = `${api.zpwServiceMap.file[0]}/api`;
   const { sharefile } = ctx.settings.features;
 
@@ -42,7 +55,7 @@ function applyZcaPatches(api) {
     return fileSize > sharefile.max_size_share_file_v3 * 1024 * 1024;
   }
   function isExtensionValid(ext) {
-    return sharefile.restricted_ext_file.indexOf(ext) == -1;
+    return sharefile.restricted_ext_file.indexOf(ext) === -1;
   }
 
   const urlType = {
@@ -174,10 +187,11 @@ function applyZcaPatches(api) {
       if (data.fileType === 'image') {
         // Upload image chunks
         for (let i = 0; i < data.params.totalChunk; i++) {
-          const encryptedParams = utils.encodeAES(JSON.stringify(data.params));
+          const encryptedParams = boundUtils.encodeAES(JSON.stringify(data.params));
           if (!encryptedParams) throw new ZaloApiError('Failed to encrypt message');
-          const response = await utils.request(
-            utils.makeURL(url + urlType[data.fileType], { type: typeParam, params: encryptedParams }),
+          const requestUrl = boundUtils.makeURL(url + urlType[data.fileType], { type: typeParam, params: encryptedParams });
+          const response = await boundUtils.request(
+            requestUrl,
             {
               method: 'POST',
               headers: data.chunkContent[i].getHeaders(),
@@ -243,13 +257,14 @@ function applyZcaPatches(api) {
 
         // Upload tất cả các chunks
         for (let i = 0; i < data.params.totalChunk; i++) {
-          const encryptedParams = utils.encodeAES(JSON.stringify(data.params));
+          const encryptedParams = boundUtils.encodeAES(JSON.stringify(data.params));
           if (!encryptedParams) {
             if (timeoutTimer) clearTimeout(timeoutTimer);
             throw new ZaloApiError('Failed to encrypt message');
           }
-          const response = await utils.request(
-            utils.makeURL(url + urlType[data.fileType], { type: typeParam, params: encryptedParams }),
+          const requestUrl = boundUtils.makeURL(url + urlType[data.fileType], { type: typeParam, params: encryptedParams });
+          const response = await boundUtils.request(
+            requestUrl,
             {
               method: 'POST',
               headers: data.chunkContent[i].getHeaders(),
