@@ -126,6 +126,11 @@ async function authenticate() {
   );
 
   logger.success('Đăng nhập Zalo thành công!');
+  try {
+    if (fs.existsSync(config.qrPath)) {
+      fs.unlinkSync(config.qrPath);
+    }
+  } catch (_) {}
   return api;
 }
 
