@@ -207,9 +207,9 @@ function startBot(api) {
       // Bỏ qua tin nhắn thường do chính mình gửi (tránh bot tự trả lời AI với chính nó)
       if (isSelf) return;
 
-      // Kiểm tra xem người dùng có gửi liên kết TikTok trực tiếp không (tiện lợi khi quên gõ lệnh !stik)
+      // Kiểm tra xem người dùng có gửi liên kết TikTok trực tiếp trong chat riêng không (tiện lợi khi quên gõ lệnh !stik)
       const directTikTokUrl = extractTikTokUrl(rawContent);
-      if (directTikTokUrl && (!isGroup || isMentioned || isQuotingBot)) {
+      if (directTikTokUrl && !isGroup) {
         const stikCmd = commands.get('stik');
         if (stikCmd) {
           logger.bot(`Tự động kích hoạt tải video TikTok từ liên kết của [${senderName}]`);
@@ -226,38 +226,25 @@ function startBot(api) {
         }
       }
 
-      // Kiểm tra xem bot có được nhắc đến (tag @bot) hoặc trích dẫn trả lời (quote) trong nhóm không
-      const botUid = (typeof api.getOwnId === 'function' ? api.getOwnId() : api.listener?.ctx?.uid);
-      const isMentioned = isGroup && Array.isArray(message.data?.mentions) && botUid && message.data.mentions.some(m => String(m.uid) === String(botUid));
-      const isQuotingBot = isGroup && message.data?.quote && botUid && String(message.data.quote.ownerId) === String(botUid);
-
       // Điều kiện kích hoạt AI tự động:
-      // 1. Trong nhóm: khi bot được tag (@bot) hoặc khi thành viên trích dẫn trả lời tin nhắn của bot
-      // 2. Trong chat riêng 1-1: khi bật AUTO_REPLY_AI=true
-      const shouldAutoTriggerAI =
-        (isGroup && (isMentioned || isQuotingBot)) ||
-        (!isGroup && config.autoReplyAi);
+      // - Trong nhóm: Đã tắt hoàn toàn tự động trả lời khi @bot hoặc trích dẫn bot (chỉ dùng lệnh !ai hoặc /ai)
+      // - Trong chat riêng 1-1: tự động phản hồi nếu bật AUTO_REPLY_AI=true và có GEMINI_API_KEY
+      const shouldAutoTriggerAI = !isGroup && config.autoReplyAi;
 
       if (shouldAutoTriggerAI && config.geminiApiKey) {
         const aiCmd = commands.get('ai');
         if (aiCmd) {
-          logger.bot(`Tự động phản hồi AI cho [${senderName}] (Nhóm: ${isGroup ? 'Có' : 'Không'}, Tag: ${!!isMentioned}, Quote: ${!!isQuotingBot})`);
+          logger.bot(`Tự động phản hồi AI cho [${senderName}] trong chat riêng 1-1`);
           const delay = getRandomDelay(config.safeDelayMin, config.safeDelayMax);
           await sleep(delay);
-
-          // Nếu có tag trong tin nhắn, lọc bỏ phần tag để lấy nội dung câu hỏi sạch
-          let cleanContent = rawContent;
-          if (isMentioned) {
-            cleanContent = cleanContent.replace(/@[^\s]+/g, '').trim();
-          }
 
           await aiCmd.execute({
             api,
             message,
-            args: cleanContent ? cleanContent.split(/\s+/) : [],
+            args: rawContent ? rawContent.split(/\s+/) : [],
             threadId,
             threadType,
-            isAutoReply: !isGroup && config.autoReplyAi && !isMentioned && !isQuotingBot,
+            isAutoReply: true,
           });
         }
       }
