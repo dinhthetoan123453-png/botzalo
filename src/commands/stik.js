@@ -107,11 +107,37 @@ module.exports = {
         );
       }
 
-      // 2. Gửi tệp video MP4 không dán logo lên thẳng đoạn chat Zalo
-      if (result.videoPath) {
+      // 2. Gửi video lên đoạn chat Zalo
+      let videoSent = false;
+      const caption = `🎥 Video: ${result.title.slice(0, 100)}`;
+
+      // Ưu tiên 1: Gửi qua api.sendVideo (Zalo Video Player - xem và phát trực tiếp ngay trong đoạn chat Zalo)
+      if (typeof api.sendVideo === 'function' && result.downloadUrl) {
+        try {
+          logger.info(`Đang gửi video TikTok trực tiếp qua api.sendVideo...`);
+          await api.sendVideo(
+            {
+              videoUrl: result.downloadUrl,
+              thumbnailUrl: result.coverUrl || '',
+              duration: result.durationSec || 0,
+              width: result.width || 720,
+              height: result.height || 1280,
+              msg: caption,
+            },
+            threadId,
+            threadType
+          );
+          videoSent = true;
+          logger.success('Đã gửi video TikTok qua api.sendVideo thành công!');
+        } catch (videoErr) {
+          logger.warn('Gửi qua api.sendVideo thất bại, chuyển sang gửi tệp đính kèm:', videoErr.message || videoErr);
+        }
+      }
+
+      // Ưu tiên 2: Nếu sendVideo chưa gửi được và có tệp video MP4 tải về, thử gửi dạng file đính kèm
+      if (!videoSent && result.videoPath) {
         try {
           logger.info(`Đang tải tệp video TikTok lên đoạn chat Zalo: ${result.videoPath}`);
-          const caption = `🎥 Video: ${result.title.slice(0, 100)}`;
           await safeSendMessage(
             api,
             {
@@ -121,18 +147,23 @@ module.exports = {
             threadId,
             threadType
           );
+          videoSent = true;
           logger.success('Đã gửi tệp video TikTok lên Zalo thành công!');
         } catch (uploadErr) {
           logger.warn('Không thể gửi trực tiếp tệp video qua Zalo:', uploadErr.message || uploadErr);
-          await safeSendMessage(
-            api,
-            {
-              msg: `⚠️ Không thể tải tệp video trực tiếp lên chat Zalo (${uploadErr.message || 'vượt quá giới hạn hoặc nghẽn mạng'}).\n👉 Bạn hãy bấm vào liên kết ở tin nhắn thông tin bên trên để xem hoặc tải video về máy nhé!`,
-            },
-            threadId,
-            threadType
-          );
         }
+      }
+
+      // Nếu cả hai phương thức gửi video đều không thành công, thông báo để người dùng bấm vào link trực tiếp
+      if (!videoSent) {
+        await safeSendMessage(
+          api,
+          {
+            msg: `⚠️ Zalo không hỗ trợ hiển thị tệp video này trực tiếp trong phiên bản Web hiện tại.\n👉 Bạn hãy bấm vào liên kết ở tin nhắn thông tin bên trên để xem trực tiếp hoặc tải video về máy nhé!`,
+          },
+          threadId,
+          threadType
+        );
       }
     } catch (err) {
       logger.error('Lỗi khi xử lý lệnh tải TikTok:', err.message || err);
