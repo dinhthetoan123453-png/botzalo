@@ -143,7 +143,7 @@ async function fetchOfficialTikTokData(aweme_id) {
         headers: {
           'User-Agent': 'com.zhiliaoapp.musically/300904 (2018111632; U; Android 10; en_US; Pixel 4; Build/QQ3A.200805.001; Cronet/58.0.2991.0)',
         },
-        signal: AbortSignal.timeout(6000),
+        signal: AbortSignal.timeout(12000),
       });
 
       if (res.ok) {
@@ -153,19 +153,14 @@ async function fetchOfficialTikTokData(aweme_id) {
           const authorName = item.author?.nickname || 'Người dùng TikTok';
           const authorUsername = item.author?.unique_id ? `@${item.author.unique_id}` : '';
           const musicTitle = item.music?.title || 'Âm thanh gốc';
-          const durationSec = Math.round((item.video?.duration || 0) / 1000);
-          const width = item.video?.width || 720;
-          const height = item.video?.height || 1280;
+          const musicAuthor = item.music?.author ? ` - ${item.music.author}` : '';
           const videoUrl = item.video?.play_addr?.url_list?.[0];
           const coverUrl = item.video?.cover?.url_list?.[0] || item.video?.origin_cover?.url_list?.[0];
 
           return {
             title: item.desc || 'Video TikTok không có tiêu đề',
             author: authorUsername ? `${authorName} (${authorUsername})` : authorName,
-            duration: formatDuration(durationSec),
-            durationSec,
-            width,
-            height,
+            duration: formatDuration(Math.round((item.video?.duration || 0) / 1000)),
             likes: formatNumber(item.statistics?.digg_count),
             comments: formatNumber(item.statistics?.comment_count),
             shares: formatNumber(item.statistics?.share_count),
@@ -219,17 +214,10 @@ async function fetchTikWMData(targetUrl) {
           const musicTitle = vData.music_info?.title || vData.music || 'Âm thanh gốc';
           const musicAuthor = vData.music_info?.author ? ` - ${vData.music_info.author}` : '';
 
-          const durationSec = vData.duration || 0;
-          const width = vData.width || 720;
-          const height = vData.height || 1280;
-
           return {
             title: vData.title || 'Video TikTok không có tiêu đề',
             author: authorUsername ? `${authorName} (${authorUsername})` : authorName,
-            duration: formatDuration(durationSec),
-            durationSec,
-            width,
-            height,
+            duration: formatDuration(vData.duration),
             likes: formatNumber(vData.digg_count),
             comments: formatNumber(vData.comment_count),
             shares: formatNumber(vData.share_count),
@@ -250,9 +238,9 @@ async function fetchTikWMData(targetUrl) {
  * @param {string} inputUrl - Liên kết video TikTok
  */
 async function downloadTikTokVideo(inputUrl) {
-  const targetUrl = extractTikTokUrl(inputUrl);
+  const targetUrl = extractTikTokUrl(inputUrl) || inputUrl.trim();
   if (!targetUrl) {
-    throw new Error('Liên kết TikTok không hợp lệ.');
+    throw new Error('Không tìm thấy liên kết TikTok hợp lệ.');
   }
 
   logger.info(`Bắt đầu xử lý video TikTok: ${targetUrl}`);
@@ -325,16 +313,12 @@ async function downloadTikTokVideo(inputUrl) {
     title: videoMeta.title,
     author: videoMeta.author,
     duration: videoMeta.duration,
-    durationSec: videoMeta.durationSec || 0,
-    width: videoMeta.width || 720,
-    height: videoMeta.height || 1280,
     likes: videoMeta.likes,
     comments: videoMeta.comments,
     shares: videoMeta.shares,
     views: videoMeta.views,
     music: videoMeta.music,
     downloadUrl: videoMeta.videoUrl,
-    coverUrl: videoMeta.coverUrl || null,
     videoPath: hasVideo ? videoPath : null,
     coverPath: hasCover ? coverPath : null,
     cleanup: () => {

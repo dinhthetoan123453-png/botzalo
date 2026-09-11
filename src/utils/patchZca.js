@@ -221,27 +221,15 @@ function applyZcaPatches(api) {
         // Video hoặc file âm thanh/khác
         let fileId = null;
         let timeoutTimer = null;
-        let onUploadAttachment = null;
 
         const uploadWsPromise = new Promise((resolve, reject) => {
-          const cleanup = () => {
-            if (timeoutTimer) clearTimeout(timeoutTimer);
-            if (fileId) {
-              ctx.uploadCallbacks.delete(String(fileId));
-              ctx.uploadCallbacks.delete(Number(fileId));
-            }
-            if (onUploadAttachment && api.listener && typeof api.listener.removeListener === 'function') {
-              api.listener.removeListener('upload_attachment', onUploadAttachment);
-            }
-          };
-
           timeoutTimer = setTimeout(() => {
-            cleanup();
-            reject(new Error(`Timeout (20s) đợi Zalo xử lý tệp ${data.fileData.fileName}`));
-          }, 20000);
+            if (fileId) ctx.uploadCallbacks.delete(String(fileId));
+            reject(new Error(`Timeout (45s) đợi Zalo xử lý tệp ${data.fileData.fileName}`));
+          }, 45000);
 
           const uploadCallback = async (wsData) => {
-            cleanup();
+            if (timeoutTimer) clearTimeout(timeoutTimer);
             try {
               const checksum = (await utils.getMd5LargeFileObject(data.source, data.fileData.totalSize)).data;
               const result = Object.assign(
@@ -261,24 +249,9 @@ function applyZcaPatches(api) {
             }
           };
 
-          onUploadAttachment = (attData) => {
-            if (attData && attData.fileId) {
-              if (!fileId || String(attData.fileId) === String(fileId)) {
-                uploadCallback(attData);
-              }
-            }
-          };
-          if (api.listener && typeof api.listener.on === 'function') {
-            api.listener.on('upload_attachment', onUploadAttachment);
-          }
-
           data.__setCallback = (fId) => {
-            if (!fId) return;
             fileId = fId;
             ctx.uploadCallbacks.set(String(fId), uploadCallback);
-            if (!isNaN(fId)) {
-              ctx.uploadCallbacks.set(Number(fId), uploadCallback);
-            }
           };
         });
 
@@ -301,7 +274,7 @@ function applyZcaPatches(api) {
           const resData = await utils.resolveResponse(ctx, response);
           if (resData && resData.fileId && resData.fileId != '-1') {
             lastResData = resData;
-            if (typeof data.__setCallback === 'function') {
+            if (i === 0 && typeof data.__setCallback === 'function') {
               data.__setCallback(resData.fileId);
             }
           }
